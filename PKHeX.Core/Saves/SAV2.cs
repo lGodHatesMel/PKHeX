@@ -280,7 +280,7 @@ public sealed class SAV2 : SaveFile, ILangDeviantSave, IEventFlagArray, IEventWo
     public int EventFlagCount => 2000;
 
     public override int BoxCount => Japanese ? 9 : 14;
-    public override int MaxEV => 65535;
+    public override int MaxEV => EffortValues.Max12;
     public override int MaxIV => 15;
     public override int Generation => 2;
     public override EntityContext Context => EntityContext.Gen2;
@@ -504,6 +504,48 @@ public sealed class SAV2 : SaveFile, ILangDeviantSave, IEventFlagArray, IEventWo
             if (ofs == -1)
                 return;
             Data[ofs] = value;
+        }
+    }
+
+    public byte MysteryGiftItem
+    {
+        get
+        {
+            int ofs = Offsets.MysteryGiftItem;
+            if (ofs == -1)
+                return 0;
+            if (GetEventFlag(1809))
+                return 0;
+            return Data[ofs];
+        }
+        set
+        {
+            int ofs = Offsets.MysteryGiftItem;
+            if (ofs == -1)
+                return;
+
+            SetEventFlag(1809, value == 0);
+            Data[ofs] = value;
+        }
+    }
+
+    public bool MysteryGiftIsUnlocked
+    {
+        get
+        {
+            int ofs = Offsets.MysteryGiftIsUnlocked;
+            if (ofs == -1)
+                return false;
+            return Data[ofs] == 0x00;
+        }
+        set
+        {
+            int ofs = Offsets.MysteryGiftIsUnlocked;
+            if (ofs == -1)
+                return;
+
+            Data[ofs] = (byte)(value ? 0x00 : 0xFF);
+            Data[ofs + 2] = Data[ofs];
         }
     }
 

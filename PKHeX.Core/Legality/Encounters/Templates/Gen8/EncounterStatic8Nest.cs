@@ -9,7 +9,7 @@ namespace PKHeX.Core;
 /// </summary>
 public abstract record EncounterStatic8Nest<T>(GameVersion Version)
     : IEncounterable, IEncounterMatch, IEncounterConvertible<PK8>, IMoveset, ISeedCorrelation64<PKM>,
-        IFlawlessIVCount, IFixedGender, IDynamaxLevelReadOnly, IGigantamaxReadOnly where T : EncounterStatic8Nest<T>
+        IFlawlessIVCount, IFixedIVSet, IFixedGender, IDynamaxLevelReadOnly, IGigantamaxReadOnly where T : EncounterStatic8Nest<T>
 {
     public int Generation => 8;
     public EntityContext Context => EntityContext.Gen8;
@@ -142,7 +142,7 @@ public abstract record EncounterStatic8Nest<T>(GameVersion Version)
 
         if (pk is IRibbonSetMark8 { HasMarkEncounter8: true })
             return false;
-        if (pk.Species == (int)Core.Species.Shedinja && pk is IRibbonSetAffixed { AffixedRibbon: >= (int)RibbonIndex.MarkLunchtime })
+        if (pk.Species == (int)Core.Species.Shedinja && pk is IRibbonSetAffixed { AffixedRibbon: >= (int)RibbonIndex.MarkLunchtime and <= (int)RibbonIndex.MarkSlump })
             return false;
 
         if (!IsMatchEggLocation(pk))

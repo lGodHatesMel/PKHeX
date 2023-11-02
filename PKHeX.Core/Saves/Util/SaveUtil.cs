@@ -51,6 +51,7 @@ public static class SaveUtil
     public const int SIZE_G9_DLC1_W = 0x4329BF; // +4
     public const int SIZE_G9_DLC1_3 = 0x4329C0; // +5
     public const int SIZE_G9_DLC1_9 = 0x4329C4;
+    public const int SIZE_G9_DLC1_V = 0x4329C9;
     public const int SIZE_G9_DLC1_4 = 0x432EB6;
     public const int SIZE_G9_DLC1_C = 0x432EBB; // +5
     public const int SIZE_G9_DLC1_5 = 0x432EBF; // +4
@@ -142,6 +143,8 @@ public static class SaveUtil
     };
 #endif
 
+    private const int SIZE_G9_202 = 0xC8E; // Add 2 blocks (1 obj 0xC80, 1 bool) = 4{key}1{obj}4{len} + 4{key}1{boolT/boolF}
+
     private static readonly HashSet<long> SizesSV = new()
     {
         SIZE_G9_0, SIZE_G9_0a,
@@ -155,31 +158,32 @@ public static class SaveUtil
         SIZE_G9_3G0, SIZE_G9_3G1,
         SIZE_G9_3P0, SIZE_G9_3P1,
 
-        SIZE_G9_DLC1_0,
-        SIZE_G9_DLC1_1,
-        SIZE_G9_DLC1_2,
-        SIZE_G9_DLC1_3,
-        SIZE_G9_DLC1_4,
-        SIZE_G9_DLC1_5,
-        SIZE_G9_DLC1_6,
-        SIZE_G9_DLC1_7,
-        SIZE_G9_DLC1_8,
-        SIZE_G9_DLC1_9,
-        SIZE_G9_DLC1_A,
-        SIZE_G9_DLC1_B,
-        SIZE_G9_DLC1_C,
-        SIZE_G9_DLC1_D,
-        SIZE_G9_DLC1_E,
-        SIZE_G9_DLC1_F,
-        SIZE_G9_DLC1_G,
-        SIZE_G9_DLC1_H,
-        SIZE_G9_DLC1_I,
-        SIZE_G9_DLC1_Q,
-        SIZE_G9_DLC1_W,
-        SIZE_G9_DLC1_R,
-        SIZE_G9_DLC1_T,
-        SIZE_G9_DLC1_Y,
-        SIZE_G9_DLC1_U,
+        SIZE_G9_DLC1_0, SIZE_G9_DLC1_0 + SIZE_G9_202,
+        SIZE_G9_DLC1_1, SIZE_G9_DLC1_1 + SIZE_G9_202,
+        SIZE_G9_DLC1_2, SIZE_G9_DLC1_2 + SIZE_G9_202,
+        SIZE_G9_DLC1_3, SIZE_G9_DLC1_3 + SIZE_G9_202,
+        SIZE_G9_DLC1_4, SIZE_G9_DLC1_4 + SIZE_G9_202,
+        SIZE_G9_DLC1_5, SIZE_G9_DLC1_5 + SIZE_G9_202,
+        SIZE_G9_DLC1_6, SIZE_G9_DLC1_6 + SIZE_G9_202,
+        SIZE_G9_DLC1_7, SIZE_G9_DLC1_7 + SIZE_G9_202,
+        SIZE_G9_DLC1_8, SIZE_G9_DLC1_8 + SIZE_G9_202,
+        SIZE_G9_DLC1_9, SIZE_G9_DLC1_9 + SIZE_G9_202,
+        SIZE_G9_DLC1_A, SIZE_G9_DLC1_A + SIZE_G9_202,
+        SIZE_G9_DLC1_B, SIZE_G9_DLC1_B + SIZE_G9_202,
+        SIZE_G9_DLC1_C, SIZE_G9_DLC1_C + SIZE_G9_202,
+        SIZE_G9_DLC1_D, SIZE_G9_DLC1_D + SIZE_G9_202,
+        SIZE_G9_DLC1_E, SIZE_G9_DLC1_E + SIZE_G9_202,
+        SIZE_G9_DLC1_F, SIZE_G9_DLC1_F + SIZE_G9_202,
+        SIZE_G9_DLC1_G, SIZE_G9_DLC1_G + SIZE_G9_202,
+        SIZE_G9_DLC1_H, SIZE_G9_DLC1_H + SIZE_G9_202,
+        SIZE_G9_DLC1_I, SIZE_G9_DLC1_I + SIZE_G9_202,
+        SIZE_G9_DLC1_Q, SIZE_G9_DLC1_Q + SIZE_G9_202,
+        SIZE_G9_DLC1_W, SIZE_G9_DLC1_W + SIZE_G9_202,
+        SIZE_G9_DLC1_R, SIZE_G9_DLC1_R + SIZE_G9_202,
+        SIZE_G9_DLC1_T, SIZE_G9_DLC1_T + SIZE_G9_202,
+        SIZE_G9_DLC1_Y, SIZE_G9_DLC1_Y + SIZE_G9_202,
+        SIZE_G9_DLC1_U, SIZE_G9_DLC1_U + SIZE_G9_202,
+        SIZE_G9_DLC1_V, SIZE_G9_DLC1_V + SIZE_G9_202,
     };
 
     private static readonly HashSet<long> SizesSWSH = new()
