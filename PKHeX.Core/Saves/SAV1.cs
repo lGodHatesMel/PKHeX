@@ -7,7 +7,7 @@ namespace PKHeX.Core;
 /// <summary>
 /// Generation 1 <see cref="SaveFile"/> object.
 /// </summary>
-public sealed class SAV1 : SaveFile, ILangDeviantSave, IEventFlagArray
+public sealed class SAV1 : SaveFile, ILangDeviantSave, IEventFlagArray, IEventWorkArray<byte>
 {
     protected internal override string ShortSummary => $"{OT} ({Version}) - {PlayTimeString}";
     public override string Extension => ".sav";
@@ -55,8 +55,13 @@ public sealed class SAV1 : SaveFile, ILangDeviantSave, IEventFlagArray
     private void Initialize(GameVersion versionOverride)
     {
         // see if RBY can be differentiated
-        if (Starter != 0 && versionOverride is not (GameVersion.RB or GameVersion.YW))
-            Version = Yellow ? GameVersion.YW : GameVersion.RB;
+        if (versionOverride is not (GameVersion.RB or GameVersion.YW))
+        {
+            if (Starter != 0)
+                Version = Yellow ? GameVersion.YW : GameVersion.RB;
+            else
+                Version = Data[Offsets.PikaFriendship] != 0 ? GameVersion.YW : GameVersion.RB;
+        }
 
         Box = Data.Length;
         Array.Resize(ref Data, Data.Length + SIZE_RESERVED);
@@ -163,6 +168,11 @@ public sealed class SAV1 : SaveFile, ILangDeviantSave, IEventFlagArray
             throw new ArgumentOutOfRangeException(nameof(flagNumber), $"Event Flag to set ({flagNumber}) is greater than max ({EventFlagCount}).");
         SetFlag(Offsets.EventFlag + (flagNumber >> 3), flagNumber & 7, value);
     }
+
+    // Event Work
+    public int EventWorkCount => 0x100;
+    public byte GetWork(int index) => Data[Offsets.EventWork + index];
+    public void SetWork(int index, byte value) => Data[Offsets.EventWork + index] = value;
 
     protected override byte[] GetFinalData()
     {
