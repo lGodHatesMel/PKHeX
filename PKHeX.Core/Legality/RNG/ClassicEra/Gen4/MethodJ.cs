@@ -93,7 +93,9 @@ public static class MethodJ
         }
     }
 
-    private static bool CheckEncounterActivation<T>(T enc, ref LeadSeed result)
+    public static bool IsEncounterCheckApplicable(SlotType4 type) => type is HoneyTree || type.IsFishingRodType();
+
+    public static bool CheckEncounterActivation<T>(T enc, ref LeadSeed result)
         where T : IEncounterSlot4
     {
         if (enc.Type.IsFishingRodType())
@@ -146,7 +148,7 @@ public static class MethodJ
         // This occurs in Mt. Coronet B1F; if passed, check if the player is on a Feebas tile before replacing.
         // 0 - Hook
         // 1 - CheckTiles -- current seed
-        // 2- ESV
+        // 2 - ESV
         if (s4.Species is (int)Species.Feebas && !IsFeebasChance(result >> 16))
             return false;
 
@@ -211,7 +213,7 @@ public static class MethodJ
             return TryGetMatchNoSync(ctx, out result);
         }
         var syncProc = IsSyncPass(p0);
-        if (syncProc)
+        if (syncProc && !(enc.Type is Grass && enc.LevelMax < levelMin))
         {
             var ctx = new FrameCheckDetails<T>(enc, seed, levelMin, levelMax, format);
             if (IsSlotValidRegular(ctx, out seed))
@@ -278,6 +280,16 @@ public static class MethodJ
     private static bool TryGetMatchNoSync<T>(in FrameCheckDetails<T> ctx, out LeadSeed result)
         where T : IEncounterSlot4
     {
+        if (ctx.Encounter.Type is Grass)
+        {
+            if (ctx.Encounter.LevelMax > ctx.LevelMin) // Must be boosted via Pressure/Hustle/Vital Spirit
+            {
+                if (IsSlotValidHustleVital(ctx, out var pressure))
+                { result = new(pressure, PressureHustleSpirit); return true; }
+                result = default; return false;
+            }
+        }
+
         if (IsSlotValidRegular(ctx, out uint seed))
         { result = new(seed, None); return true; }
 
@@ -293,10 +305,13 @@ public static class MethodJ
 
         if (IsSlotValidStaticMagnet(ctx, out seed, out var lead))
         { result = new(seed, lead); return true; }
-        if (IsSlotValidHustleVital(ctx, out seed))
-        { result = new(seed, PressureHustleSpirit); return true; }
         if (IsSlotValidIntimidate(ctx, out seed))
         { result = new(seed, IntimidateKeenEyeFail); return true; }
+        if (ctx.Encounter.PressureLevel <= ctx.LevelMax) // Can be boosted, or not.
+        {
+            if (IsSlotValidHustleVital(ctx, out var pressure))
+            { result = new(pressure, PressureHustleSpirit); return true; }
+        }
 
         if (CanRadar(ctx.Encounter))
         { result = new(ctx.Seed1, Radar); return true; }
@@ -304,7 +319,7 @@ public static class MethodJ
         result = default; return false;
     }
 
-    private static bool IsLevelRand<T>(T enc) where T : IEncounterSlot4 => enc.Type.IsLevelRandDPPt();
+    public static bool IsLevelRand<T>(T enc) where T : IEncounterSlot4 => enc.Type.IsLevelRandDPPt();
 
     private static bool IsSlotValidFrom1Skip<T>(FrameCheckDetails<T> ctx, out uint result)
         where T : IEncounterSlot4
