@@ -9,10 +9,14 @@ public static class StringConverter3
 {
     public const byte TerminatorByte = 0xFF;
     private const char Terminator = (char)TerminatorByte;
-    private const char Apostrophe = '\''; // ’
+    public const byte QuoteLeftByte = 0xB1;
+    public const byte QuoteRightByte = 0xB2;
     private const byte ApostropheByte = 0xB4;
-    private const byte QuoteLeftByte = 0xB1;
-    private const byte QuoteRightByte = 0xB2;
+
+    private const char FGM = '♂';
+    private const char FGF = '♀';
+    private const char HGM = StringConverter4Util.HGM; // '♂'
+    private const char HGF = StringConverter4Util.HGF; // '♀'
 
     /// <summary>
     /// Converts a Generation 3 encoded value array to string.
@@ -53,7 +57,7 @@ public static class StringConverter3
             }; // Convert to Unicode
             if (c == Terminator) // Stop if Terminator/Invalid
                 break;
-            c = StringConverter.SanitizeChar(c);
+            c = StringConverter4Util.NormalizeGenderSymbol(c);
             result[i] = c;
         }
         return i;
@@ -84,12 +88,15 @@ public static class StringConverter3
         else if (option is StringConverterOption.ClearZero)
             buffer.Clear();
 
-        var table = (language == (int)LanguageID.Japanese) ? G3_JP : G3_EN;
+        bool jp = language == (int)LanguageID.Japanese;
+        var table = jp ? G3_JP : G3_EN;
         int i = 0;
         for (; i < value.Length; i++)
         {
-            var c = StringConverter.UnSanitizeChar5(value[i]);
-            if (!TryGetIndex(table, c, language, out var b))
+            var chr = value[i];
+            if (!jp)
+                chr = StringConverter4Util.UnNormalizeGenderSymbol(chr);
+            if (!TryGetIndex(table, chr, language, out var b))
                 break;
             buffer[i] = b;
         }
@@ -144,7 +151,7 @@ public static class StringConverter3
 
     // Quotation marks are displayed differently based on the Gen3 game language.
     // Pal Park converts these to the appropriate ones based on the PKM language.
-    private static char GetQuoteLeft(int language) => language switch
+    public static char GetQuoteLeft(int language) => language switch
     {
         (int)LanguageID.English or (int)LanguageID.Italian or (int)LanguageID.Spanish => '“',
         (int)LanguageID.French => '«',
@@ -152,7 +159,7 @@ public static class StringConverter3
         _ => '『', // Invalid languages use JP quote
     };
 
-    private static char GetQuoteRight(int language) => language switch
+    public static char GetQuoteRight(int language) => language switch
     {
         (int)LanguageID.English or (int)LanguageID.Italian or (int)LanguageID.Spanish => '”',
         (int)LanguageID.French => '»',
@@ -167,7 +174,7 @@ public static class StringConverter3
     {
         result = c switch
         {
-            Apostrophe => ApostropheByte,
+            '’' => ApostropheByte, // ’ -> '
             '“' => language != (int)LanguageID.German ? QuoteLeftByte : QuoteRightByte,
             '”' => QuoteRightByte,
             '«' => QuoteLeftByte,
@@ -183,17 +190,17 @@ public static class StringConverter3
     private static ReadOnlySpan<char> G3_EN =>
     [
         ' ',  'À',  'Á',  'Â', 'Ç',  'È',  'É',  'Ê',  'Ë',  'Ì', 'こ', 'Î',  'Ï',  'Ò',  'Ó',  'Ô',  // 0
-        'Œ',  'Ù',  'Ú',  'Û', 'Ñ',  'ß',  'à',  'á',  'ね', 'Ç',  'È', 'é',  'ê',  'ë',  'ì',  'í',  // 1
-        'î',  'ï',  'ò',  'ó', 'ô',  'œ',  'ù',  'ú',  'û',  'ñ',  'º', 'ª',  '⒅', '&',  '+',  'あ', // 2
-        'ぃ', 'ぅ', 'ぇ', 'ぉ', 'ゃ', '=',  'ょ', 'が', 'ぎ', 'ぐ', 'げ', 'ご', 'ざ', 'じ', 'ず', 'ぜ', // 3
+        'Œ',  'Ù',  'Ú',  'Û', 'Ñ',  'ß',  'à',  'á',  'ね', 'ç',  'è', 'é',  'ê',  'ë',  'ì',  'ま',  // 1
+        'î',  'ï',  'ò',  'ó', 'ô',  'œ',  'ù',  'ú',  'û',  'ñ',  'º', 'ª',  '⑩', '&',  '+',  'あ', // 2
+        'ぃ', 'ぅ', 'ぇ', 'ぉ', 'ゃ', '=',  ';', 'が', 'ぎ', 'ぐ', 'げ', 'ご', 'ざ', 'じ', 'ず', 'ぜ', // 3
         'ぞ', 'だ', 'ぢ', 'づ', 'で', 'ど', 'ば', 'び', 'ぶ', 'べ', 'ぼ', 'ぱ', 'ぴ', 'ぷ', 'ぺ', 'ぽ',  // 4
-        'っ', '¿',  '¡',  '⒆', '⒇', 'オ', 'カ', 'キ', 'ク', 'ケ', 'Í',  'コ', 'サ', 'ス', 'セ', 'ソ', // 5
+        'っ', '¿',  '¡',  '⒆', '⒇', 'オ', 'カ', 'キ', 'ク', 'ケ', 'Í',  '%', '(', ')', 'セ', 'ソ', // 5
         'タ', 'チ', 'ツ', 'テ', 'ト', 'ナ', 'ニ', 'ヌ', 'â',  'ノ', 'ハ', 'ヒ', 'フ', 'ヘ', 'ホ', 'í',  // 6
-        'ミ', 'ム', 'メ', 'モ', 'ヤ', 'ユ', 'ヨ', 'ラ', 'リ', 'ル', 'レ', 'ロ', 'ワ', 'ヲ', 'ン', 'ァ', // 7
-        'ィ', 'ゥ', 'ェ', 'ォ', 'ャ', 'ュ', 'ョ', 'ガ', 'ギ', 'グ', 'ゲ', 'ゴ', 'ザ', 'ジ', 'ズ', 'ゼ', // 8
+        'ミ', 'ム', 'メ', 'モ', 'ヤ', 'ユ', 'ヨ', 'ラ', 'リ', '↑', '↓', '←', '＋', 'ヲ', 'ン', 'ァ', // 7
+        'ィ', 'ゥ', 'ェ', 'ォ', '⒅', '<', '>', 'ガ', 'ギ', 'グ', 'ゲ', 'ゴ', 'ザ', 'ジ', 'ズ', 'ゼ', // 8
         'ゾ', 'ダ', 'ヂ', 'ヅ', 'デ', 'ド', 'バ', 'ビ', 'ブ', 'ベ', 'ボ', 'パ', 'ピ', 'プ', 'ペ', 'ポ', // 9
         'ッ', '0',  '1',  '2', '3',  '4',  '5',  '6',  '7',  '8',  '9',  '!', '?',  '.',  '-',  '･',// A
-        '⑬',  '“',  '”',  '‘', '’',  '⑭',  '⑮',  '$',  ',',  '⑧',  '/',  'A', 'B',  'C',  'D',  'E', // B
+        '⑬',  '“',  '”', '‘', '\'', HGM,  HGF,  '$',  ',',  '⑧',  '/',  'A', 'B',  'C',  'D',  'E', // B
         'F',  'G',  'H',  'I', 'J',  'K',  'L',  'M',  'N',  'O',  'P',  'Q', 'R',  'S',  'T',  'U', // C
         'V',  'W',  'X',  'Y', 'Z',  'a',  'b',  'c',  'd',  'e',  'f',  'g', 'h',  'i',  'j',  'k', // D
         'l',  'm',  'n',  'o', 'p',  'q',  'r',  's',  't',  'u',  'v',  'w', 'x',  'y',  'z',  '►', // E
@@ -216,13 +223,13 @@ public static class StringConverter3
         'ィ', 'ゥ', 'ェ', 'ォ', 'ャ', 'ュ', 'ョ', 'ガ', 'ギ', 'グ', 'ゲ', 'ゴ', 'ザ', 'ジ', 'ズ', 'ゼ', // 8
         'ゾ', 'ダ', 'ヂ', 'ヅ', 'デ', 'ド', 'バ', 'ビ', 'ブ', 'ベ', 'ボ', 'パ', 'ピ', 'プ', 'ペ', 'ポ', // 9
         'ッ', '０', '１', '２', '３', '４', '５', '６', '７', '８', '９', '！', '？', '。', 'ー', '・', // A
-        '…',  '『', '』', '「', '」',  '♂',  '♀', '円', '．', '×', '／', 'Ａ', 'Ｂ', 'Ｃ', 'Ｄ', 'Ｅ', // B
+        '…',  '『', '』', '「', '」',  FGM,  FGF, '円', '．', '×', '／', 'Ａ', 'Ｂ', 'Ｃ', 'Ｄ', 'Ｅ', // B
         'Ｆ', 'Ｇ', 'Ｈ', 'Ｉ', 'Ｊ', 'Ｋ', 'Ｌ', 'Ｍ', 'Ｎ', 'Ｏ', 'Ｐ', 'Ｑ', 'Ｒ', 'Ｓ', 'Ｔ', 'Ｕ', // C
         'Ｖ', 'Ｗ', 'Ｘ', 'Ｙ', 'Ｚ', 'ａ', 'ｂ', 'ｃ', 'ｄ', 'ｅ', 'ｆ', 'ｇ', 'ｈ', 'ｉ', 'ｊ', 'ｋ', // D
         'ｌ', 'ｍ', 'ｎ', 'ｏ', 'ｐ', 'ｑ', 'ｒ', 'ｓ', 'ｔ', 'ｕ', 'ｖ', 'ｗ', 'ｘ', 'ｙ', 'ｚ', '►',  // E
-        '：',  'Ä',  'Ö',  'Ü',  'ä',  'ö', 'ü',                                                      // F
+        '：',  'Ä',  'Ö',  'Ü',  'ä',  'ö', 'ü', '↑',  '↓', '←',  '→', '＋',                        // F
 
         // Make the total length 256 so that any byte access is always within the array
-        Terminator, Terminator, Terminator, Terminator, Terminator, Terminator, Terminator, Terminator, Terminator,
+        Terminator, Terminator, Terminator, Terminator,
     ];
 }

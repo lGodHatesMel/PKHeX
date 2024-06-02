@@ -11,7 +11,7 @@ namespace PKHeX.Core;
 /// Object representing a <see cref="PKM"/>'s data and derived properties.
 /// </summary>
 [DynamicallyAccessedMembers(PublicProperties | NonPublicProperties | PublicParameterlessConstructor)]
-public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILangNick, IGameValueLimit, INature, IFatefulEncounter, IStringConverter
+public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILangNick, IGameValueLimit, INature, IFatefulEncounter, IStringConverter, ITrashIntrospection
 {
     /// <summary>
     /// Valid file extensions that represent <see cref="PKM"/> data, without the leading '.'
@@ -151,6 +151,9 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     public abstract string GetString(ReadOnlySpan<byte> data);
     public abstract int LoadString(ReadOnlySpan<byte> data, Span<char> text);
     public abstract int SetString(Span<byte> data, ReadOnlySpan<char> text, int length, StringConverterOption option);
+    public abstract int GetStringTerminatorIndex(ReadOnlySpan<byte> data);
+    public abstract int GetStringLength(ReadOnlySpan<byte> data);
+    public abstract int GetBytesPerChar();
 
     /// <summary>
     /// The date the Pokémon was met.
@@ -252,8 +255,15 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     public virtual GameVersion MinGameID => 0;
     public abstract int MaxIV { get; }
     public abstract int MaxEV { get; }
-    public abstract int MaxStringLengthOT { get; }
+
+    /// <summary> Maximum length a Trainer Name can be represented as. </summary>
+    public abstract int MaxStringLengthTrainer { get; }
+    /// <summary> Maximum length a Nickname can be represented as. </summary>
     public abstract int MaxStringLengthNickname { get; }
+    /// <summary> Total characters allocated for holding a Trainer Name. </summary>
+    public abstract int TrashCharCountTrainer { get; }
+    /// <summary> Total characters allocated for holding a Nickname. </summary>
+    public abstract int TrashCharCountNickname { get; }
 
     // Derived
     public virtual int SpriteItem => HeldItem;
@@ -553,7 +563,6 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     private int GetTradedEggLocation() => Locations.TradedEggLocation(Generation, Version);
 
     public virtual bool IsUntraded => false;
-    public virtual bool IsNative => Generation == Format;
     public bool IsOriginValid => Species <= MaxSpeciesID;
 
     /// <summary>
@@ -998,7 +1007,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
 
         // Transfer properties in the order they are defined in the destination PKM format for best conversion
         var shared = destProperties.Intersect(srcProperties);
-        foreach (string property in shared)
+        foreach (var property in shared)
         {
             // Setter sanity check: a derived type may not implement a setter if its parent type has one.
             if (!BatchEditing.TryGetHasProperty(result, property, out var pi))

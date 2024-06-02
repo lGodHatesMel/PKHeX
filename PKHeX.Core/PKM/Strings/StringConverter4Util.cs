@@ -35,6 +35,8 @@ public static class StringConverter4Util
         index = TableKOR.IndexOf(c);
         if (index >= 0)
             return (ushort)(index + TableKORStart);
+        if (c == '’')
+            return Apostrophe; // ’ -> '
         return SaveInvalidAs;
     }
 
@@ -71,6 +73,38 @@ public static class StringConverter4Util
     private const ushort SaveInvalidAs = 0x1AC; // '?'
     private const char NUL = (char)StringConverter4.Terminator;
     private const char EMP = NUL; // Empty, not available on keyboard.
+    private const ushort Apostrophe = 0x1B3;
+
+    /// <summary>
+    /// Half-width gender 16-bit char representation.
+    /// </summary>
+    /// <remarks>Exact value is the value when converted to Generation 5's encoding.</remarks>
+    public const char HGM = '\u246D'; // '♂'
+    /// <inheritdoc cref="HGM"/>
+    public const char HGF = '\u246E'; // '♀'
+
+    /// <summary>
+    /// Converts full width to single width from the 0x246D/0x246E characters.
+    /// </summary>
+    /// <param name="chr">Input character to sanitize.</param>
+    public static char NormalizeGenderSymbol(char chr) => chr switch
+    {
+        HGM => '♂',
+        HGF => '♀',
+        _ => chr,
+    };
+
+    /// <summary>
+    /// Converts full width to half width when appropriate
+    /// </summary>
+    /// <param name="chr">Input character to set back to data</param>
+    /// <param name="fullWidth">Checks if the overall string is full-width</param>
+    public static char UnNormalizeGenderSymbol(char chr, bool fullWidth = false) => fullWidth ? chr : chr switch
+    {
+        '♂' => HGM,
+        '♀' => HGF,
+        _ => chr,
+    };
 
     public static ReadOnlySpan<char> TableINT =>
     [
@@ -101,7 +135,7 @@ public static class StringConverter4Util
         'á', 'â', 'ã', 'ä', 'å', 'æ', 'ç', 'è', 'é', 'ê', 'ë', 'ì', 'í', 'î', 'ï', 'ð', // 180-18F
         'ñ', 'ò', 'ó', 'ô', 'õ', 'ö', '⑨', 'ø', 'ù', 'ú', 'û', 'ü', 'ý', 'þ', 'ÿ', 'Œ', // 190-19F
         'œ', 'Ş', 'ş', 'ª', 'º', '⑩', '⑪', '⑫', '$', '¡', '¿', '!', '?', ',', '.', '⑬', // 1A0-1AF
-        '･', '/', '‘', '’', '“', '”', '„', '«', '»', '(', ')', '⑭', '⑮', '+', '-', '*', // 1B0-1BF
+        '･', '/', '‘', '\'', '“', '”', '„', '«', '»', '(', ')', HGM, HGF, '+', '-', '*', // 1B0-1BF
         '#', '=', '&', '~', ':', ';', '⑯', '⑰', '⑱', '⑲', '⑳', '⑴', '⑵', '⑶', '⑷', '⑸', // 1C0-1CF
         '@', '⑹', '%', '⑺', '⑻', '⑼', '⑽', '⑾', '⑿', '⒀', '⒁', '⒂', '⒃', '⒄', ' ', '⒅', // 1D0-1DF
         '⒆', '⒇', '⒈', '⒉', '⒊', '⒋', '⒌', '⒍', '°', '_', '＿', '⒎', '⒏', // 1E0-1EC*

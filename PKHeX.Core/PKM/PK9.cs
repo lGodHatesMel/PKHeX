@@ -26,7 +26,6 @@ public sealed class PK9 : PKM, ISanityChecksum, ITeraType, ITechRecord, IObedien
 
     public override PersonalInfo9SV PersonalInfo => PersonalTable.SV.GetFormEntry(Species, Form);
     public IPermitRecord Permit => PersonalInfo;
-    public override bool IsNative => SV;
     public override EntityContext Context => EntityContext.Gen9;
 
     public PK9() : base(PokeCrypto.SIZE_9PARTY)
@@ -66,11 +65,13 @@ public sealed class PK9 : PKM, ISanityChecksum, ITeraType, ITechRecord, IObedien
     public override Span<byte> NicknameTrash => Data.AsSpan(0x58, 26);
     public override Span<byte> HandlingTrainerTrash => Data.AsSpan(0xA8, 26);
     public override Span<byte> OriginalTrainerTrash => Data.AsSpan(0xF8, 26);
+    public override int TrashCharCountTrainer => 13;
+    public override int TrashCharCountNickname => 13;
 
     // Maximums
     public override int MaxIV => 31;
     public override int MaxEV => EffortValues.Max252;
-    public override int MaxStringLengthOT => 12;
+    public override int MaxStringLengthTrainer => 12;
     public override int MaxStringLengthNickname => 12;
 
     public override uint PSV => ((PID >> 16) ^ (PID & 0xFFFF)) >> 4;
@@ -565,7 +566,10 @@ public sealed class PK9 : PKM, ISanityChecksum, ITeraType, ITechRecord, IObedien
             return false;
         if (tr.Language != Language)
             return false;
-        return tr.OT == OriginalTrainerName;
+
+        Span<char> ot = stackalloc char[MaxStringLengthTrainer];
+        int len = LoadString(OriginalTrainerTrash, ot);
+        return ot[..len].SequenceEqual(tr.OT);
     }
 
     public void UpdateHandler(ITrainerInfo tr)
@@ -660,19 +664,7 @@ public sealed class PK9 : PKM, ISanityChecksum, ITeraType, ITechRecord, IObedien
         return true;
     }
 
-    private void TradeHT(ITrainerInfo tr)
-    {
-        if (HandlingTrainerName != tr.OT)
-        {
-            HandlingTrainerFriendship = 50;
-            HandlingTrainerName = tr.OT;
-        }
-        CurrentHandler = 1;
-        HandlingTrainerGender = tr.Gender;
-        if (HandlingTrainerLanguage == 0)
-            this.ClearMemoriesHT();
-        HandlingTrainerLanguage = (byte)tr.Language;
-    }
+    private void TradeHT(ITrainerInfo tr) => PKH.UpdateHandler(this, tr);
 
     // Maximums
     public override ushort MaxMoveID => Legal.MaxMoveID_9;
@@ -688,4 +680,9 @@ public sealed class PK9 : PKM, ISanityChecksum, ITeraType, ITechRecord, IObedien
         => StringConverter8.LoadString(data, destBuffer);
     public override int SetString(Span<byte> destBuffer, ReadOnlySpan<char> value, int maxLength, StringConverterOption option)
         => StringConverter8.SetString(destBuffer, value, maxLength, option);
+    public override int GetStringTerminatorIndex(ReadOnlySpan<byte> data)
+        => TrashBytesUTF16.GetTerminatorIndex(data);
+    public override int GetStringLength(ReadOnlySpan<byte> data)
+        => TrashBytesUTF16.GetStringLength(data);
+    public override int GetBytesPerChar() => 2;
 }

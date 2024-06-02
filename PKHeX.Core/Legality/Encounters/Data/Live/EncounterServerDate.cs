@@ -200,6 +200,9 @@ public static class EncounterServerDate
         {1535, (new(2024, 03, 14), new(2024, 10, 01))}, // Liko's Sprigatito Gift
         {0509, (new(2024, 04, 04), new(2024, 04, 09))}, // Marco's Iron Hands Gift
         {1008, (new(2024, 05, 04), new(2024, 05, 08))}, // 신여명's Flutter Mane
+        {0052, (new(2024, 05, 11), new(2024, 07, 01))}, // Sophia's Gyarados Gift
+        {1536, (new(2024, 05, 18), new(2024, 12, 01))}, // Dot's Quaxly Gift
+        {0049, (new(2024, 05, 31), new(2024, 06, 03))}, // Kaito Arii's Talonflame Gift
 
         {9021, HOME3_ML}, // Hidden Ability Sprigatito
         {9022, HOME3_ML}, // Hidden Ability Fuecoco

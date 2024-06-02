@@ -10,6 +10,13 @@ namespace PKHeX.WinForms;
 public partial class TrashEditor : Form
 {
     private readonly IStringConverter Converter;
+    private readonly ToolTip Tip = new() { InitialDelay = 200, IsBalloon = false, AutoPopDelay = 32_767 };
+    private readonly List<NumericUpDown> Bytes = [];
+    public string FinalString { get; private set; }
+    public byte[] FinalBytes { get; private set; }
+
+    private readonly byte[] Raw;
+    private bool editing;
 
     public TrashEditor(TextBoxBase TB_NN, IStringConverter sav, byte generation) : this(TB_NN, [], sav, generation) { }
 
@@ -60,12 +67,6 @@ public partial class TrashEditor : Form
         };
     }
 
-    private readonly ToolTip Tip = new() { InitialDelay = 200, IsBalloon = false, AutoPopDelay = 32_767 };
-    private readonly List<NumericUpDown> Bytes = [];
-    public string FinalString;
-    public byte[] FinalBytes;
-    private readonly byte[] Raw;
-    private bool editing;
     private void B_Cancel_Click(object sender, EventArgs e) => Close();
 
     private void B_Save_Click(object sender, EventArgs e)
@@ -89,8 +90,10 @@ public partial class TrashEditor : Form
             l.Font = f;
             l.AutoSize = false;
             l.Size = new Size(20, 20);
-            l.Click += (s, e) => { if (TB_Text.Text.Length < TB_Text.MaxLength) TB_Text.AppendText(l.Text); };
+            l.Click += (_, _) => { if (TB_Text.Text.Length < TB_Text.MaxLength) TB_Text.AppendText(l.Text); };
             FLP_Characters.Controls.Add(l);
+            var tt = new ToolTip();
+            tt.SetToolTip(l, $"Insert {l.Text} (0x{c:X4})");
         }
     }
 
@@ -151,8 +154,10 @@ public partial class TrashEditor : Form
             return;
         editing = true;
         // build bytes
-        byte[] data = SetString(TB_Text.Text);
-        Array.Copy(data, Raw, Math.Min(data.Length, Raw.Length));
+        ReadOnlySpan<byte> data = SetString(TB_Text.Text);
+        if (data.Length > Raw.Length)
+            data = data[..Raw.Length];
+        data.CopyTo(Raw);
         for (int i = 0; i < Raw.Length; i++)
             Bytes[i].Value = Raw[i];
         editing = false;
@@ -161,8 +166,8 @@ public partial class TrashEditor : Form
     private void B_ApplyTrash_Click(object sender, EventArgs e)
     {
         string text = GetTrashString();
-        byte[] data = SetString(text);
-        byte[] current = SetString(TB_Text.Text);
+        ReadOnlySpan<byte> data = SetString(text);
+        ReadOnlySpan<byte> current = SetString(TB_Text.Text);
         if (data.Length <= current.Length)
         {
             WinFormsUtil.Alert("Trash byte layer is hidden by current text.",
@@ -224,6 +229,7 @@ public partial class TrashEditor : Form
         5 => SpecialCharsGen5,
         6 => SpecialCharsGen67,
         7 => SpecialCharsGen67,
+        >= 8 => SpecialCharsGen8,
         _ => [], // Undocumented
     };
 
@@ -304,5 +310,27 @@ public partial class TrashEditor : Form
         0xE0A3, // Half Right-up arrow
         0xE0A4, // Half Right-down arrow 
         0xE0A5, // Half Zz
+    ];
+
+    private static ReadOnlySpan<ushort> SpecialCharsGen8 =>
+    [
+        '…', // '\uE08D' -> '\u2026'
+        '♂', // '\uE08E' -> '\u2642'
+        '♀', // '\uE08F' -> '\u2640'
+        '♠', // '\uE090' -> '\u2660'
+        '♣', // '\uE091' -> '\u2663'
+        '♥', // '\uE092' -> '\u2665'
+        '♦', // '\uE093' -> '\u2666'
+        '★', // '\uE094' -> '\u2605'
+        '◎', // '\uE095' -> '\u25CE'
+        '○', // '\uE096' -> '\u25CB'
+        '□', // '\uE097' -> '\u25A1'
+        '△', // '\uE098' -> '\u25B3'
+        '◇', // '\uE099' -> '\u25C7'
+        '♪', // '\uE09A' -> '\u266A'
+        '☀', // '\uE09B' -> '\u2600'
+        '☁', // '\uE09C' -> '\u2601'
+        '☂', // '\uE09D' -> '\u2602'
+        '☃', // '\uE09E' -> '\u2603'
     ];
 }
