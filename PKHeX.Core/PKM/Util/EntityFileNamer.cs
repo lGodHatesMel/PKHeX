@@ -48,7 +48,7 @@ public sealed class DefaultEntityNamer : IFileNamer<PKM>
         string marktype = string.Empty;
         if (pk.IsShiny)
         {
-            if (pk.Format >= 8 && (pk.ShinyXor == 0 || pk.FatefulEncounter || pk.Version == (int)GameVersion.GO))
+            if (pk.Format >= 8 && (pk.ShinyXor == 0 || pk.FatefulEncounter || (int)pk.Version == (int)GameVersion.GO))
                 shinytype = " ■";
             else
                 shinytype = " ★";
@@ -63,7 +63,7 @@ public sealed class DefaultEntityNamer : IFileNamer<PKM>
         if (pk is IGigantamax gmax && gmax.CanGigantamax)
             speciesName += "-Gmax";
 
-        string OTInfo = string.IsNullOrEmpty(pk.OT_Name) ? "" : $" - {pk.OT_Name} - {TIDFormatted}{ballFormatted}";
+        string OTInfo = string.IsNullOrEmpty(pk.OriginalTrainerName) ? "" : $" - {pk.OriginalTrainerName} - {TIDFormatted}{ballFormatted}";
         OTInfo = string.Concat(OTInfo.Split(Path.GetInvalidFileNameChars())).Trim();
 
         if (pk is PK8)
