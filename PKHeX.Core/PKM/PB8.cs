@@ -134,6 +134,8 @@ public sealed class PB8 : G8PKM
     public override int MaxBallID => Legal.MaxBallID_8b;
     public override GameVersion MaxGameID => Legal.MaxGameID_HOME;
 
+    public override bool WasEgg => IsEgg || EggDay != 0;
+
     public override bool HasOriginalMetLocation => base.HasOriginalMetLocation && !(LA && MetLocation == LocationsHOME.SWLA);
 
     public override string GetString(ReadOnlySpan<byte> data)
