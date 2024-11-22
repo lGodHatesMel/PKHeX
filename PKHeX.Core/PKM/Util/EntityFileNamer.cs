@@ -43,65 +43,6 @@ public sealed class DefaultEntityNamer : IFileNamer<PKM>
     {
         var chk = pk is ISanityChecksum s ? s.Checksum : Checksums.Add16(pk.Data.AsSpan()[8..pk.SIZE_STORED]);
         var form = pk.Form != 0 ? $"-{pk.Form:00}" : string.Empty;
-        var formName = pk.Form != 0 ? $"-{GetFormName(pk)}" : string.Empty;
-        string ballFormatted = string.Empty;
-        string shinytype = string.Empty;
-        string marktype = string.Empty;
-        if (pk.IsShiny)
-        {
-            if (pk.Format >= 8 && (pk.ShinyXor == 0 || pk.FatefulEncounter || (int)pk.Version == (int)GameVersion.GO))
-                shinytype = " ■";
-            else
-                shinytype = " ★";
-        }
-
-        string IVList = pk.IV_HP + "." + pk.IV_ATK + "." + pk.IV_DEF + "." + pk.IV_SPA + "." + pk.IV_SPD + "." + pk.IV_SPE;
-        string TIDFormatted = pk.Generation >= 7 ? $"{pk.TrainerTID7:000000}" : $"{pk.TID16:00000}";
-        if (pk.Ball != (int)Ball.None)
-            ballFormatted = " - " + GameInfo.Strings.balllist[pk.Ball].Split(' ')[0];
-
-        string speciesName = SpeciesName.GetSpeciesNameGeneration(pk.Species, (int)LanguageID.English, pk.Format);
-        if (pk is IGigantamax gmax && gmax.CanGigantamax)
-            speciesName += "-Gmax";
-
-        string OTInfo = string.IsNullOrEmpty(pk.OriginalTrainerName) ? "" : $" - {pk.OriginalTrainerName} - {TIDFormatted}{ballFormatted}";
-        OTInfo = string.Concat(OTInfo.Split(Path.GetInvalidFileNameChars())).Trim();
-
-        if (pk is PK8)
-        {
-            bool hasMark = HasMark((PK8)pk, out RibbonIndex mark);
-            if (hasMark)
-                marktype = hasMark ? $"{mark.ToString().Replace("Mark", "")}Mark - " : "";
-        }
-
-        if (pk is PK9)
-        {
-            bool hasMark = HasMark((PK9)pk, out RibbonIndex mark);
-            if (hasMark)
-                marktype = hasMark ? $"{mark.ToString().Replace("Mark", "")}Mark - " : "";
-        } 
-        return $"{pk.Species:000}{form}{shinytype} - {speciesName}{formName} - {marktype}{IVList}{OTInfo}";
-    }
-
-    private static string GetFormName(PKM pk) {
-        var Strings = GameInfo.GetStrings(GameLanguage.DefaultLanguage);
-        string FormString = ShowdownParsing.GetStringFromForm(pk.Form, Strings, pk.Species, pk.Context);
-        string FormName = ShowdownParsing.GetShowdownFormName(pk.Species, FormString);
-        return FormName;
-    }
-
-    public static bool HasMark(IRibbonIndex pk, out RibbonIndex result)
-    {
-        result = default;
-        for (var mark = RibbonIndex.MarkLunchtime; mark <= RibbonIndex.MarkTitan; mark++)
-        {
-            if (pk.GetRibbon((int)mark))
-            {
-                result = mark;
-                return true;
-            }
-        }
-        return false;
         var star = pk.IsShiny ? " ★" : string.Empty;
         return $"{pk.Species:0000}{form}{star} - {pk.Nickname} - {chk:X4}{pk.EncryptionConstant:X8}";
     }
