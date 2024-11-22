@@ -211,6 +211,9 @@ public static class EncounterServerDate
         {0062, (new(2024, 10, 31), new(2026, 02, 01))}, // PokéCenter Birthday Tandemaus
         {0513, (new(2024, 11, 15), new(2024, 11, 23))}, // Patrick's Pelipper
 
+        {0054, (new(2024, 11, 21), new(2025, 06, 01))}, // Operation Get Mythical's JPN Keldeo
+        {0055, (new(2024, 11, 21), new(2025, 06, 01))}, // Operation Get Mythical's JPN Zarude
+        {0056, (new(2024, 11, 21), new(2025, 06, 01))}, // Operation Get Mythical's JPN Deoxys
         {1011, (new(2024, 11, 22), new(2025, 04, 30))}, // Mythical Pokémon Get Operation - Keldeo
         {1012, (new(2024, 11, 22), new(2025, 04, 30))}, // Mythical Pokémon Get Operation - Zarude
         {1013, (new(2024, 11, 22), new(2025, 04, 30))}, // Mythical Pokémon Get Operation - Deoxys
