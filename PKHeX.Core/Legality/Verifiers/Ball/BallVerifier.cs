@@ -18,16 +18,16 @@ public sealed class BallVerifier : Verifier
         data.AddLine(result);
     }
 
-    private static byte IsReplacedBall(IVersion enc, PKM pk) => pk switch
+    private static Ball IsReplacedBall(IVersion enc, PKM pk) => pk switch
     {
         // Trading from PLA origin -> SW/SH will replace the Legends: Arceus ball with a regular Poké Ball
-        PK8 when enc.Version == GameVersion.PLA => (int)Poke,
+        PK8 when enc.Version == GameVersion.PLA => Poke,
 
         // No replacement done.
         _ => NoBallReplace,
     };
 
-    private const int NoBallReplace = (int)None;
+    private const Ball NoBallReplace = None;
 
     private CheckResult VerifyBall(LegalityAnalysis data)
     {
@@ -35,64 +35,74 @@ public sealed class BallVerifier : Verifier
         var enc = info.EncounterOriginal;
         var pk = data.Entity;
 
-        var ball = IsReplacedBall(enc, pk);
-        if (ball != NoBallReplace)
-            return VerifyBallEquals(pk, ball);
-
         // Capture / Inherit cases -- can be one of many balls
         if (pk.Species == (int)Species.Shedinja && enc.Species != (int)Species.Shedinja) // Shedinja. For Gen3, copy the ball from Nincada
         {
             // Only a Gen3 origin Shedinja can copy the wild ball.
             // Evolution chains will indicate if it could have existed as Shedinja in Gen3.
             // The special move verifier has a similar check!
-            if (pk is { HGSS: true, Ball: (int)Sport }) // Can evolve in D/P to retain the HG/SS ball (separate byte) -- not able to be captured in any other ball
+            if (enc is { Version: GameVersion.HG or GameVersion.SS, IsEgg: false } && pk is { Ball: (int)Sport }) // Can evolve in D/P to retain the HG/SS ball (separate byte) -- not able to be captured in any other ball
                 return GetResult(true);
             if (enc.Generation != 3 || info.EvoChainsAllGens.Gen3.Length != 2) // not evolved in Gen3 Nincada->Shedinja
                 return VerifyBallEquals(pk, (int)Poke); // Poké Ball Only
         }
 
+        return VerifyBall(pk, enc);
+    }
+
+    /// <summary>
+    /// Verifies the currently set ball for the <see cref="PKM"/>.
+    /// </summary>
+    /// <remarks>Call this directly instead of the <see cref="LegalityAnalysis"/> overload if you've already ruled out the above cases needing Evolution chains.</remarks>
+    public static BallVerificationResult VerifyBall(PKM pk, IEncounterTemplate enc)
+    {
+        var ball = IsReplacedBall(enc, pk);
+        if (ball != NoBallReplace)
+            return VerifyBallEquals(pk, ball);
+
         // Capturing with Heavy Ball is impossible in Sun/Moon for specific species.
         if (pk is { Ball: (int)Heavy, SM: true } && enc is not EncounterEgg && BallUseLegality.IsAlolanCaptureNoHeavyBall(enc.Species))
-            return GetInvalid(LBallHeavy); // Heavy Ball, can inherit if from egg (US/UM fixed catch rate calc)
+            return BadCaptureHeavy; // Heavy Ball, can inherit if from egg (US/UM fixed catch rate calc)
 
         return enc switch
         {
-            EncounterSlot8GO => GetResult(true), // Already a strict match
             EncounterInvalid => GetResult(true), // ignore ball, pass whatever
-            IFixedBall { FixedBall: not None } s => VerifyBallEquals(pk, (byte)s.FixedBall),
+            EncounterSlot8GO g => GetResult(g.IsBallValid(current, pk.Species, pk)),
+            IFixedBall { FixedBall: not None } s => VerifyBallEquals(current, s.FixedBall),
+            EncounterSlot8 when pk is IRibbonSetMark8 { RibbonMarkCurry: true } or IRibbonSetAffixed { AffixedRibbon: (sbyte)RibbonIndex.MarkCurry }
+                => GetResult(current is Poke or Great or Ultra),
 
-            EncounterEgg => VerifyBallEgg(pk, enc), // Inheritance rules can vary.
-            EncounterStatic5Entree => VerifyBallEquals((Ball)pk.Ball, BallUseLegality.DreamWorldBalls),
-            _ => VerifyBallEquals((Ball)pk.Ball, BallUseLegality.GetWildBalls(enc.Generation, enc.Version)),
+            EncounterEgg => VerifyBallEgg(enc, current, pk), // Inheritance rules can vary.
+            EncounterStatic5Entree => VerifyBallEquals(current, BallUseLegality.DreamWorldBalls),
+            _ => VerifyBallEquals(current, BallUseLegality.GetWildBalls(enc.Generation, enc.Version)),
         };
     }
 
-    private CheckResult VerifyBallEgg(PKM pk, IEncounterTemplate enc)
+    private static BallVerificationResult VerifyBallEgg(PKM pk, IEncounterTemplate enc)
     {
         if (enc.Generation < 6) // No inheriting Balls
-            return VerifyBallEquals(pk, (int)Poke); // Must be Poké Ball -- no ball inheritance.
+            return VerifyBallEquals(ball, Poke); // Must be Poké Ball -- no ball inheritance.
 
-        return pk.Ball switch
+        return ball switch
         {
-            (int)Master => GetInvalid(LBallEggMaster), // Master Ball
-            (int)Cherish => GetInvalid(LBallEggCherish), // Cherish Ball
+            (int)Master => BadInheritMaster,
+            (int)Cherish => BadInheritCherish,
             _ => VerifyBallInherited(pk, enc),
         };
     }
 
-    private CheckResult VerifyBallInherited(PKM pk, IEncounterTemplate enc) => enc.Context switch
+    private static BallVerificationResult VerifyBallInherited(PKM pk, IEncounterTemplate enc) => enc.Context switch
     {
         EntityContext.Gen6 => VerifyBallEggGen6(pk, enc), // Gen6 Inheritance Rules
         EntityContext.Gen7 => VerifyBallEggGen7(pk, enc), // Gen7 Inheritance Rules
         EntityContext.Gen8 => VerifyBallEggGen8(pk, enc),
         EntityContext.Gen8b => VerifyBallEggGen8BDSP(pk, enc),
         EntityContext.Gen9 => VerifyBallEggGen9(pk, enc),
-        _ => GetInvalid(LBallNone),
+        _ => BadEncounter,
     };
 
-    private CheckResult VerifyBallEggGen6(PKM pk, IEncounterTemplate enc)
+    private static BallVerificationResult VerifyBallEggGen6(PKM pk, IEncounterTemplate enc)
     {
-        var ball = (Ball)pk.Ball;
         if (ball > Dream)
             return GetInvalid(LBallUnavailable);
 
@@ -100,9 +110,8 @@ public sealed class BallVerifier : Verifier
         return GetResult(result);
     }
 
-    private CheckResult VerifyBallEggGen7(PKM pk, IEncounterTemplate enc)
+    private static BallVerificationResult VerifyBallEggGen7(PKM pk, IEncounterTemplate enc)
     {
-        var ball = (Ball)pk.Ball;
         if (ball > Beast)
             return GetInvalid(LBallUnavailable);
 
@@ -110,9 +119,8 @@ public sealed class BallVerifier : Verifier
         return GetResult(result);
     }
 
-    private CheckResult VerifyBallEggGen8BDSP(PKM pk, IEncounterTemplate enc)
+    private static BallVerificationResult VerifyBallEggGen8BDSP(PKM pk, IEncounterTemplate enc)
     {
-        var ball = (Ball)pk.Ball;
         if (ball > Beast)
             return GetInvalid(LBallUnavailable);
 
@@ -124,9 +132,8 @@ public sealed class BallVerifier : Verifier
         return GetResult(result);
     }
 
-    private CheckResult VerifyBallEggGen8(PKM pk, IEncounterTemplate enc)
+    private static BallVerificationResult VerifyBallEggGen8(PKM pk, IEncounterTemplate enc)
     {
-        var ball = (Ball)pk.Ball;
         if (ball > Beast)
             return GetInvalid(LBallUnavailable);
 
@@ -134,9 +141,8 @@ public sealed class BallVerifier : Verifier
         return GetResult(result);
     }
 
-    private CheckResult VerifyBallEggGen9(PKM pk, IEncounterTemplate enc)
+    private static BallVerificationResult VerifyBallEggGen9(PKM pk, IEncounterTemplate enc)
     {
-        var ball = (Ball)pk.Ball;
         if (ball > Beast)
             return GetInvalid(LBallUnavailable);
 
@@ -149,8 +155,8 @@ public sealed class BallVerifier : Verifier
         return GetResult(result);
     }
 
-    private CheckResult VerifyBallEquals(PKM pk, byte ball) => GetResult(ball == pk.Ball);
-    private CheckResult VerifyBallEquals(Ball ball, ulong permit) => GetResult(BallUseLegality.IsBallPermitted(permit, (byte)ball));
+    private static BallVerificationResult VerifyBallEquals(PKM pk, byte ball) => GetResult(ball == pk.Ball);
+    private static BallVerificationResult VerifyBallEquals(Ball ball, ulong permit) => GetResult(BallUseLegality.IsBallPermitted(permit, (byte)ball));
 
     private CheckResult GetResult(bool valid) => valid ? GetValid(LBallEnc) : GetInvalid(LBallEncMismatch);
 
