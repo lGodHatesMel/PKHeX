@@ -58,9 +58,14 @@ internal static class BatchModifications
         if (e is IMasteryInitialMoveShop8 enc)
             enc.SetInitialMastery(pk);
         if (IsAll(propValue))
+        {
+            t.SetPurchasedFlagsAll();
             t.SetMoveShopFlagsAll(pk);
+        }
         else
+        {
             t.SetMoveShopFlags(pk);
+        }
         return ModifyResult.Modified;
     }
 
@@ -84,7 +89,7 @@ internal static class BatchModifications
     {
         var pk = info.Entity;
         var encounter = EncounterSuggestion.GetSuggestedMetInfo(pk);
-        if (encounter == null)
+        if (encounter is null)
             return ModifyResult.Error;
 
         var location = encounter.Location;

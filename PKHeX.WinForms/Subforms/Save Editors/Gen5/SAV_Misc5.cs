@@ -567,7 +567,7 @@ public partial class SAV_Misc5 : Form
 
     private void UpdateSlotValue(object sender, EventArgs e)
     {
-        if (CurrentSlot == null)
+        if (CurrentSlot is null)
             return;
 
         if (sender == CB_Species)
@@ -816,7 +816,7 @@ public partial class SAV_Misc5 : Form
         if (sfd.ShowDialog() != DialogResult.OK)
             return;
 
-        var data = bw.Forest.ForestCity.ToArray();
+        var data = bw.Forest.ForestCity.Span;
         File.WriteAllBytes(sfd.FileName, data);
     }
 
