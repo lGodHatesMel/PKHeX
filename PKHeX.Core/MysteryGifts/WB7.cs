@@ -7,7 +7,7 @@ namespace PKHeX.Core;
 /// Generation 7 Mystery Gift Template File (LGP/E)
 /// </summary>
 public sealed class WB7(byte[] Data)
-    : DataMysteryGift(Data), ILangNick, IAwakened, IRelearn, INature, ILangNicknamedTemplate, IMetLevel, IRestrictVersion
+    : DataMysteryGift(Data), ILangNick, IAwakened, IRelearn, IEncounterServerDate, INature, ILangNicknamedTemplate, IMetLevel, IRestrictVersion
 {
     public WB7() : this(new byte[Size]) { }
 
@@ -300,7 +300,7 @@ public sealed class WB7(byte[] Data)
         get => GetOT(Language);
         set
         {
-            for (int i = 1; i < (int)LanguageID.ChineseT; i++)
+            for (int i = 1; i <= (int)LanguageID.ChineseT; i++)
                 SetOT(i, value);
         }
     }
@@ -315,13 +315,10 @@ public sealed class WB7(byte[] Data)
     /// <remarks>
     /// Gifts received can be locally traded to the international release, so there is no need to consider residence or transferability.
     /// </remarks>
-    public bool IsMainlandChinaGift => CardID is (1501);
+    public bool IsMainlandChinaGift => CardID is (1501 or 1503);
 
     public int GetLanguage(int redeemLanguage)
     {
-        if (IsMainlandChinaGift)
-            return (int)LanguageID.ChineseS;
-
         var languageOffset = GetLanguageIndex(redeemLanguage);
         var value = Data[0x1D8 + languageOffset];
         if (value != 0) // Fixed receiving language
@@ -355,6 +352,8 @@ public sealed class WB7(byte[] Data)
         return 0xEE + (index * 0x1A);
     }
 
+    public bool IsHOMEGift => CardID >= 9000;
+
     public override PB7 ConvertToPKM(ITrainerInfo tr, EncounterCriteria criteria)
     {
         if (!IsEntity)
@@ -366,7 +365,7 @@ public sealed class WB7(byte[] Data)
         var metLevel = MetLevel > 0 ? MetLevel : currentLevel;
         var pi = PersonalTable.GG.GetFormEntry(Species, Form);
 
-        var redeemLanguage = tr.Language;
+        var redeemLanguage = IsMainlandChinaGift ? (int)LanguageID.ChineseS : tr.Language;
         var language = GetLanguage(redeemLanguage);
         bool hasOT = GetHasOT(redeemLanguage);
 
@@ -429,7 +428,8 @@ public sealed class WB7(byte[] Data)
             pk.SID16 = tr.SID16;
         }
 
-        pk.MetDate = Date ?? EncounterDate.GetDateSwitch();
+        pk.ReceivedDate = pk.MetDate = Date ?? GetSuggestedDate();
+        pk.ReceivedTime = EncounterDate.GetTime();
         pk.IsNicknamed = GetIsNicknamed(redeemLanguage);
         pk.Nickname = pk.IsNicknamed ? GetNickname(redeemLanguage) : SpeciesName.GetSpeciesNameGeneration(Species, pk.Language, Generation);
 
@@ -445,6 +445,15 @@ public sealed class WB7(byte[] Data)
 
         pk.RefreshChecksum();
         return pk;
+    }
+
+    private DateOnly GetSuggestedDate()
+    {
+        if (!IsDateRestricted)
+            return EncounterDate.GetDateSwitch();
+        if (this.GetDistributionWindow(out var window))
+            return window.GetGenerateDate();
+        return EncounterDate.GetDateSwitch();
     }
 
     private void SetEggMetData(PB7 pk)
@@ -615,6 +624,7 @@ public sealed class WB7(byte[] Data)
         return true;
     }
 
+    public bool IsDateRestricted => IsHOMEGift;
     protected override bool IsMatchDeferred(PKM pk) => false;
     protected override bool IsMatchPartial(PKM pk) => false;
 }

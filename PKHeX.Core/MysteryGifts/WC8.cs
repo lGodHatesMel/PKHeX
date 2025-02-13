@@ -360,7 +360,7 @@ public sealed class WC8(byte[] Data) : DataMysteryGift(Data), ILangNick, INature
         get => GetOT(Language);
         set
         {
-            for (int i = 1; i < (int)LanguageID.ChineseT; i++)
+            for (int i = 1; i <= (int)LanguageID.ChineseT; i++)
                 SetOT(i, value);
         }
     }
@@ -535,10 +535,8 @@ public sealed class WC8(byte[] Data) : DataMysteryGift(Data), ILangNick, INature
     {
         if (!IsDateRestricted)
             return EncounterDate.GetDateSwitch();
-        if (EncounterServerDate.WC8GiftsChk.TryGetValue(Checksum, out var range))
-            return range.Start;
-        if (EncounterServerDate.WC8Gifts.TryGetValue(CardID, out range))
-            return range.Start;
+        if (this.GetDistributionWindow(out var window))
+            return window.GetGenerateDate();
         return EncounterDate.GetDateSwitch();
     }
 
