@@ -140,10 +140,7 @@ public sealed class BallVerifier : Verifier
         if (ball > Beast)
             return GetInvalid(LBallUnavailable);
 
-        // Paldea Starters: Only via GO (Adventures Abound)
         var species = enc.Species;
-        if (species is >= (int)Species.Sprigatito and <= (int)Species.Quaquaval)
-            return VerifyBallEquals(ball, BallUseLegality.WildPokeballs8g_WithoutRaid);
 
         var result = BallContextHOME.Instance.CanBreedWithBall(species, enc.Form, ball);
         return GetResult(result);
