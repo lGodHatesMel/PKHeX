@@ -110,6 +110,14 @@ public static class EncounterServerDate
         {0x96BC, HOME3}, // Pichu
     };
 
+    // <summary>
+    /// Minimum date the gift can be received.
+    /// </summary>
+    public static readonly Dictionary<int, (DateOnly Start, DateOnly? End)> WB7Gifts = new()
+    {
+        {9028, (new(2025, 02, 11), Never)}, // Shiny Meltan
+    };
+
     /// <summary>
     /// Minimum date the gift can be received.
     /// </summary>
@@ -122,6 +130,7 @@ public static class EncounterServerDate
         {9012, (new(2020, 11, 10), Never)}, // Gigantamax Melmetal
         {9013, (new(2021, 06, 17), Never)}, // Gigantamax Bulbasaur
         {9014, (new(2021, 06, 17), Never)}, // Gigantamax Squirtle
+        {9029, (new(2025, 02, 11), Never)}, // Shiny Keldeo
     };
 
     /// <summary>
@@ -140,7 +149,7 @@ public static class EncounterServerDate
         {9018, HOME2_AB}, // Hidden Ability Rowlet
         {9019, HOME2_AB}, // Hidden Ability Cyndaquil
         {9020, HOME2_AB}, // Hidden Ability Oshawott
-        {9027, (new(2025, 01, 28), Never)}, // Shiny Enamorus
+        {9027, (new(2025, 01, 27), Never)}, // Shiny Enamorus
     };
 
     /// <summary>
@@ -151,7 +160,7 @@ public static class EncounterServerDate
         {9015, HOME2_AB}, // Hidden Ability Turtwig
         {9016, HOME2_AB}, // Hidden Ability Chimchar
         {9017, HOME2_AB}, // Hidden Ability Piplup
-        {9026, (new(2025, 01, 28), Never)}, // Shiny Manaphy
+        {9026, (new(2025, 01, 27), Never)}, // Shiny Manaphy
     };
 
     /// <summary>
@@ -219,8 +228,13 @@ public static class EncounterServerDate
         {1012, (new(2024, 11, 21), new(2025, 06, 01))}, // Operation Get Mythical's KOR Zarude
         {1013, (new(2024, 11, 21), new(2025, 06, 01))}, // Operation Get Mythical's KOR Deoxys
         {1010, (new(2025, 01, 21), new(2025, 04, 01))}, // Pokémon Lucario & The Mystery of Mew Movie Gift KOR 아론's Lucario
+        {0514, (new(2025, 02, 05), new(2025, 07, 01))}, // Pokémon Day 2025 Flying Tera Type Eevee
+        {0519, (new(2025, 02, 20), new(2025, 03, 01))}, // Marco's Jumpluff
+        {0066, (new(2025, 04, 18), new(2025, 08, 01))}, // Wei Chyr's RillaboomAdd commentMore actions
+        {1019, (new(2025, 04, 24), new(2025, 07, 01))}, // Pokémon Town - KOR Ditto Project
+        {1020, (new(2025, 06, 06), new(2025, 06, 10))}, // PTC 2025 홍주영's Porygon2
 
-        {9021, HOME3_ML}, // Hidden Ability Sprigatito
+        { 9021, HOME3_ML}, // Hidden Ability Sprigatito
         {9022, HOME3_ML}, // Hidden Ability Fuecoco
         {9023, HOME3_ML}, // Hidden Ability Quaxly
         {9024, (new(2024, 10, 16), Never)}, // Shiny Meloetta
