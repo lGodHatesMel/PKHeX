@@ -5,7 +5,7 @@ using static System.Buffers.Binary.BinaryPrimitives;
 namespace PKHeX.Core;
 
 /// <summary> Generation 3 <see cref="PKM"/> format, exclusively for Pokémon XD. </summary>
-public sealed class XK3 : G3PKM, IShadowCapture
+public sealed class XK3 : G3PKM, IShadowCapture, ISeparateIVs, IGCRegion
 {
     public override ReadOnlySpan<ushort> ExtraBytes =>
     [
@@ -182,7 +182,14 @@ public sealed class XK3 : G3PKM, IShadowCapture
     }
 
     // IVs
-    public override int IV_HP { get => Data[0xA8]; set => Data[0xA8] = (byte)(value & 0x1F); }
+    byte ISeparateIVs.IV_HP  { get => Data[0xA8]; set => Data[0xA8] = value; }
+    byte ISeparateIVs.IV_ATK { get => Data[0xA9]; set => Data[0xA9] = value; }
+    byte ISeparateIVs.IV_DEF { get => Data[0xAA]; set => Data[0xAA] = value; }
+    byte ISeparateIVs.IV_SPA { get => Data[0xAB]; set => Data[0xAB] = value; }
+    byte ISeparateIVs.IV_SPD { get => Data[0xAC]; set => Data[0xAC] = value; }
+    byte ISeparateIVs.IV_SPE { get => Data[0xAD]; set => Data[0xAD] = value; }
+
+    public override int IV_HP  { get => Data[0xA8]; set => Data[0xA8] = (byte)(value & 0x1F); }
     public override int IV_ATK { get => Data[0xA9]; set => Data[0xA9] = (byte)(value & 0x1F); }
     public override int IV_DEF { get => Data[0xAA]; set => Data[0xAA] = (byte)(value & 0x1F); }
     public override int IV_SPA { get => Data[0xAB]; set => Data[0xAB] = (byte)(value & 0x1F); }
@@ -246,12 +253,55 @@ public sealed class XK3 : G3PKM, IShadowCapture
         _ => false,
     };
 
+    // render original string if possible
     public override string GetString(ReadOnlySpan<byte> data)
-        => StringConverter3GC.GetString(data);
+    {
+        var current = CurrentRegion;
+        if (current == GCRegion.NoRegion)
+            return StringConverter3GC.GetString(data); // don't bother
+        var language = Language;
+        if (CurrentRegion == GCRegion.NTSC_J == (language == 1)) // treat PAL and NTSC_U as equivalent
+            return StringConverter3GC.GetString(data); // no remap needed
+
+        var expect = language == 1 ? GCRegion.NTSC_J : GCRegion.NTSC_U;
+        Span<byte> remap = stackalloc byte[data.Length];
+        data.CopyTo(remap);
+        StringConverter3GC.RemapGlyphsBetweenRegions3GC(remap, current, expect, language);
+        return StringConverter3GC.GetString(remap);
+    }
+
     public override int LoadString(ReadOnlySpan<byte> data, Span<char> destBuffer)
-        => StringConverter3GC.LoadString(data, destBuffer);
+    {
+        var current = CurrentRegion;
+        if (current == GCRegion.NoRegion)
+            return StringConverter3GC.LoadString(data, destBuffer); // don't bother
+        var language = Language;
+        if (CurrentRegion == GCRegion.NTSC_J == (language == 1)) // treat PAL and NTSC_U as equivalent
+            return StringConverter3GC.LoadString(data, destBuffer); // no remap needed
+
+        var expect = language == 1 ? GCRegion.NTSC_J : GCRegion.NTSC_U;
+        Span<byte> remap = stackalloc byte[data.Length];
+        data.CopyTo(remap);
+        StringConverter3GC.RemapGlyphsBetweenRegions3GC(remap, current, expect, language);
+        return StringConverter3GC.LoadString(remap, destBuffer);
+    }
+
     public override int SetString(Span<byte> destBuffer, ReadOnlySpan<char> value, int maxLength, StringConverterOption option)
-        => StringConverter3GC.SetString(destBuffer, value, maxLength, option);
+    {
+        var current = CurrentRegion;
+        if (current == GCRegion.NoRegion)
+            return StringConverter3GC.SetString(destBuffer, value, maxLength, option); // don't bother
+        var language = Language;
+        if (CurrentRegion == GCRegion.NTSC_J == (language == 1)) // treat PAL and NTSC_U as equivalent
+            return StringConverter3GC.SetString(destBuffer, value, maxLength, option); // no remap needed
+
+        var expect = language == 1 ? GCRegion.NTSC_J : GCRegion.NTSC_U;
+        // ensure glyphs match the transfer route
+        var result = StringConverter3GC.SetString(destBuffer, value, maxLength, option);
+        StringConverter3GC.RemapGlyphsBetweenRegions3GC(destBuffer[..result], expect, current, language);
+        return result;
+    }
+
     public override int GetStringTerminatorIndex(ReadOnlySpan<byte> data)
         => TrashBytesUTF16.GetTerminatorIndex(data, StringConverter3GC.TerminatorBigEndian);
     public override int GetStringLength(ReadOnlySpan<byte> data)

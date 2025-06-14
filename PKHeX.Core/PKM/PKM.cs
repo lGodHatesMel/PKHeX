@@ -17,9 +17,12 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     public abstract int SIZE_STORED { get; }
     public string Extension => GetType().Name.ToLowerInvariant();
     public abstract PersonalInfo PersonalInfo { get; }
+
+    /// <summary>
+    /// Bytes in the data structure that are unused, either as alignment padding, or were reserved and never used.
+    /// </summary>
     public virtual ReadOnlySpan<ushort> ExtraBytes => [];
 
-    // Internal Attributes set on creation
     public readonly byte[] Data; // Raw Storage
 
     protected PKM(byte[] data) => Data = data;
@@ -164,7 +167,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
         get
         {
             // Check to see if date is valid
-            if (!DateUtil.IsDateValid(2000 + MetYear, MetMonth, MetDay))
+            if (!DateUtil.IsValidDate(2000 + MetYear, MetMonth, MetDay))
                 return null;
             return new DateOnly(2000 + MetYear, MetMonth, MetDay);
         }
@@ -207,7 +210,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
         get
         {
             // Check to see if date is valid
-            if (!DateUtil.IsDateValid(2000 + EggYear, EggMonth, EggDay))
+            if (!DateUtil.IsValidDate(2000 + EggYear, EggMonth, EggDay))
                 return null;
             return new DateOnly(2000 + EggYear, EggMonth, EggDay);
         }
@@ -283,8 +286,8 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     public bool SM => Version is SN or MN;
     public bool USUM => Version is US or UM;
     public bool GO => Version is GameVersion.GO;
-    public bool VC1 => Version is >= RD and <= YW;
-    public bool VC2 => Version is >= GD and <= C;
+    public bool VC1 => Version is RD or GN or BU or YW;
+    public bool VC2 => Version is GD or SI or C;
     public bool LGPE => Version is GP or GE;
     public bool SWSH => Version is SW or SH;
     public virtual bool BDSP => Version is BD or SP;
@@ -296,12 +299,12 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     public bool VC => VC1 || VC2;
     public bool GG => LGPE || GO_LGPE;
     public bool Gen9 => SV;
-    public bool Gen8 => Version is >= SW and <= SP || GO_HOME;
-    public bool Gen7 => Version is >= SN and <= UM || GG;
-    public bool Gen6 => Version is >= X and <= OR;
-    public bool Gen5 => Version is >= W and <= B2;
-    public bool Gen4 => Version is HG or SS or D or P or GameVersion.Pt;
-    public bool Gen3 => Version is (>= S and <= LG) or CXD;
+    public bool Gen8 => Version.IsGen8() || GO_HOME;
+    public bool Gen7 => Version.IsGen7();
+    public bool Gen6 => Version.IsGen6();
+    public bool Gen5 => Version.IsGen5();
+    public bool Gen4 => Version.IsGen4();
+    public bool Gen3 => Version.IsGen3();
     public bool Gen2 => Version == GSC; // Fixed value set by the Gen2 PKM classes
     public bool Gen1 => Version == RBY; // Fixed value set by the Gen1 PKM classes
     public bool GenU => Generation <= 0;
@@ -312,7 +315,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
         {
             if (Gen9) return 9;
             if (Gen8) return 8;
-            if (Gen7) return 7;
+            if (Gen7 || GG) return 7;
             if (Gen6) return 6;
             if (Gen5) return 5;
             if (Gen4) return 4;
@@ -364,6 +367,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
 
     public int[] IVs
     {
+        [Obsolete($"Use the {nameof(GetIVs)} method with stackalloc to not allocate.")]
         get => [IV_HP, IV_ATK, IV_DEF, IV_SPE, IV_SPA, IV_SPD];
         set => SetIVs(value);
     }
@@ -408,6 +412,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
     }
 
     /// <inheritdoc cref="GetIVs(Span{int})"/>
+    /// <remarks>Returns the combined 30-bit representation commonly used as IV32.</remarks>
     public uint GetIVs()
     {
         uint iv32 = 0;
@@ -466,6 +471,12 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
         set => SetMoves(value);
     }
 
+    /// <summary>
+    /// Tries to add a move to the moveset of the PKM.
+    /// </summary>
+    /// <param name="move">Move ID to add.</param>
+    /// <param name="pushOut">If the current moveset is full, whether to push out the oldest move (index 0) to add the new one.</param>
+    /// <returns></returns>
     public bool AddMove(ushort move, bool pushOut = true)
     {
         if (move == 0 || move >= MaxMoveID || HasMove(move))
@@ -483,6 +494,9 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
         return true;
     }
 
+    /// <summary>
+    /// Count of non-zero moves in the moveset.
+    /// </summary>
     public int MoveCount => Convert.ToInt32(Move1 != 0) + Convert.ToInt32(Move2 != 0) + Convert.ToInt32(Move3 != 0) + Convert.ToInt32(Move4 != 0);
 
     public void GetMoves(Span<ushort> value)
@@ -703,7 +717,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
 
     public virtual void LoadStats(IBaseStat p, Span<ushort> stats)
     {
-        int level = CurrentLevel; // recalculate instead of checking Stat_Level
+        var level = CurrentLevel; // recalculate instead of checking Stat_Level
         if (this is IHyperTrain t)
             LoadStats(stats, p, t, level);
         else
@@ -713,7 +727,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
         NatureAmp.ModifyStatsForNature(stats, StatNature);
     }
 
-    private void LoadStats(Span<ushort> stats, IBaseStat p, IHyperTrain t, int level)
+    private void LoadStats(Span<ushort> stats, IBaseStat p, IHyperTrain t, byte level)
     {
         stats[0] = (ushort)(p.HP == 1 ? 1 : (((t.HT_HP ? 31 : IV_HP) + (2 * p.HP) + (EV_HP / 4) + 100) * level / 100) + 10);
         stats[1] = (ushort)((((t.HT_ATK ? 31 : IV_ATK) + (2 * p.ATK) + (EV_ATK / 4)) * level / 100) + 5);
@@ -723,7 +737,7 @@ public abstract class PKM : ISpeciesForm, ITrainerID32, IGeneration, IShiny, ILa
         stats[3] = (ushort)((((t.HT_SPE ? 31 : IV_SPE) + (2 * p.SPE) + (EV_SPE / 4)) * level / 100) + 5);
     }
 
-    private void LoadStats(Span<ushort> stats, IBaseStat p, int level)
+    private void LoadStats(Span<ushort> stats, IBaseStat p, byte level)
     {
         stats[0] = (ushort)(p.HP == 1 ? 1 : ((IV_HP + (2 * p.HP) + (EV_HP / 4) + 100) * level / 100) + 10);
         stats[1] = (ushort)(((IV_ATK + (2 * p.ATK) + (EV_ATK / 4)) * level / 100) + 5);

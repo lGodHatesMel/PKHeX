@@ -29,7 +29,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         value.Slots.Publisher.Subscribers.Add(SL_Extra);
     }
 
-    public SaveFile SAV { get; private set; } = new FakeSaveFile();
+    public SaveFile SAV { get; private set; } = FakeSaveFile.Default;
     public int CurrentBox => Box.CurrentBox;
     public SlotChangeManager M { get; }
     public readonly ContextMenuSAV menu;
@@ -941,7 +941,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     public bool ExportSaveFile()
     {
         ValidateChildren();
-        bool reload = SAV is SAV7b b && b.FixPreWrite();
+        bool reload = SAV is IStorageCleanup b && b.FixStoragePreWrite();
         if (reload)
             ReloadSlots();
         return WinFormsUtil.ExportSAVDialog(SAV, SAV.CurrentBox);
@@ -958,7 +958,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             return false;
         }
 
-        var suggestion = Util.CleanFileName(SAV.Metadata.BAKName);
+        var suggestion = PathUtil.CleanFileName(SAV.Metadata.BAKName);
         using var sfd = new SaveFileDialog();
         sfd.FileName = suggestion;
         if (sfd.ShowDialog() != DialogResult.OK)
@@ -1331,7 +1331,9 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     private static void ExportShowdownText(SaveFile sav, string success, Func<SaveFile, IEnumerable<PKM>> fetch)
     {
         var list = fetch(sav);
-        var result = ShowdownParsing.GetShowdownSets(list, Environment.NewLine + Environment.NewLine);
+        var programLanguage = Language.GetLanguageValue(Main.Settings.Startup.Language);
+        var settings = Main.Settings.BattleTemplate.Export.GetSettings(programLanguage, sav.Context);
+        var result = ShowdownParsing.GetShowdownSets(list, Environment.NewLine + Environment.NewLine, settings);
         if (string.IsNullOrWhiteSpace(result))
             return;
         if (WinFormsUtil.SetClipboardText(result))

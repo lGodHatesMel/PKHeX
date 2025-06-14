@@ -4,8 +4,15 @@ using static PKHeX.Core.CheckIdentifier;
 
 namespace PKHeX.Core.Bulk;
 
+/// <summary>
+/// Checks for duplicate Encryption Constants (EC) among Pokémon in a bulk legality analysis.
+/// </summary>
 public sealed class DuplicateEncryptionChecker : IBulkAnalyzer
 {
+    /// <summary>
+    /// Analyzes the provided <see cref="BulkAnalysis"/> for duplicate Encryption Constants.
+    /// </summary>
+    /// <param name="input">The bulk analysis data to check.</param>
     public void Analyze(BulkAnalysis input)
     {
         if (input.Trainer.Generation < 6)
@@ -63,9 +70,9 @@ public sealed class DuplicateEncryptionChecker : IBulkAnalyzer
 
         // eggs/mystery gifts shouldn't share with wild encounters
         var cenc = ca.Info.EncounterMatch;
-        bool eggMysteryCurrent = cenc is EncounterEgg or MysteryGift;
+        bool eggMysteryCurrent = cenc is IEncounterEgg or MysteryGift;
         var penc = pa.Info.EncounterMatch;
-        bool eggMysteryPrevious = penc is EncounterEgg or MysteryGift;
+        bool eggMysteryPrevious = penc is IEncounterEgg or MysteryGift;
 
         if (eggMysteryCurrent != eggMysteryPrevious)
         {

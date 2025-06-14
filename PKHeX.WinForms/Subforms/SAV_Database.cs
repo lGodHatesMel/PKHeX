@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using PKHeX.Core;
@@ -37,12 +38,14 @@ public partial class SAV_Database : Form
     private const int RES_MAX = GridWidth * GridHeight;
     private readonly string Counter;
     private readonly string Viewed;
-    private const int MAXFORMAT = PKX.Generation;
+    private const int MAXFORMAT = Latest.Generation;
     private readonly SummaryPreviewer ShowSet = new();
+    private readonly CancellationTokenSource cts = new();
 
     public SAV_Database(PKMEditor f1, SAVEditor saveditor)
     {
         InitializeComponent();
+        FormClosing += (_, _) => cts.Cancel();
         WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
         UC_Builder = new EntityInstructionBuilder(() => f1.PreparePKM())
         {
@@ -107,7 +110,11 @@ public partial class SAV_Database : Form
                     return;
 
                 var pk = Results[index];
-                slot.AccessibleDescription = ShowdownParsing.GetLocalizedPreviewText(pk.Entity, Main.CurrentLanguage);
+
+                var x = Main.Settings;
+                var programLanguage = Language.GetLanguageValue(x.Startup.Language);
+                var settings = x.BattleTemplate.Hover.GetSettings(programLanguage, pk.Entity.Context);
+                slot.AccessibleDescription = ShowdownParsing.GetLocalizedPreviewText(pk.Entity, settings);
             };
         }
 
@@ -123,15 +130,16 @@ public partial class SAV_Database : Form
         // Load Data
         B_Search.Enabled = false;
         L_Count.Text = "Loading...";
-        var task = new Task(LoadDatabase);
+        var token = cts.Token;
+        var task = new Task(() => LoadDatabase(token), cts.Token);
         task.ContinueWith(z =>
         {
-            if (!z.IsFaulted)
+            if (token.IsCancellationRequested || !z.IsFaulted)
                 return;
             Invoke((MethodInvoker)(() => L_Count.Text = "Failed."));
             if (z.Exception is null)
                 return;
-            WinFormsUtil.Error("Loading database failed.", z.Exception.InnerException ?? new Exception(z.Exception.Message));
+            WinFormsUtil.Error("Loading database failed.", z.Exception.InnerException ?? z.Exception.GetBaseException());
         });
         task.Start();
 
@@ -158,11 +166,22 @@ public partial class SAV_Database : Form
         if (sender == mnu)
             mnu.Hide();
 
+        var slot = Results[index];
+        var temp = slot.Entity;
+        var pk = EntityConverter.ConvertToType(temp, SAV.PKMType, out var c);
+        if (pk is null)
+        {
+            WinFormsUtil.Error(c.GetDisplayString(temp, SAV.PKMType));
+            return;
+        }
+        SAV.AdaptToSaveFile(pk);
+        pk.RefreshChecksum();
+        PKME_Tabs.PopulateFields(pk, false);
+
         slotSelected = index;
         slotColor = SpriteUtil.Spriter.View;
         FillPKXBoxes(SCR_Box.Value);
-        L_Viewed.Text = string.Format(Viewed, Results[index].Identify());
-        PKME_Tabs.PopulateFields(Results[index].Entity, false);
+        L_Viewed.Text = string.Format(Viewed, slot.Identify());
     }
 
     private void ClickDelete(object sender, EventArgs e)
@@ -222,7 +241,7 @@ public partial class SAV_Database : Form
         PKM pk = PKME_Tabs.PreparePKM();
         Directory.CreateDirectory(DatabasePath);
 
-        string path = Path.Combine(DatabasePath, Util.CleanFileName(pk.FileName));
+        string path = Path.Combine(DatabasePath, PathUtil.CleanFileName(pk.FileName));
 
         if (File.Exists(path))
         {
@@ -267,9 +286,10 @@ public partial class SAV_Database : Form
 
         var comboAny = new ComboItem(MsgAny, -1);
 
-        var species = new List<ComboItem>(GameInfo.SpeciesDataSource);
-        species.RemoveAt(0);
-        species.Insert(0, comboAny);
+        var species = new List<ComboItem>(GameInfo.SpeciesDataSource)
+        {
+            [0] = comboAny // Replace (None) with "Any"
+        };
         CB_Species.DataSource = species;
 
         var items = new List<ComboItem>(GameInfo.ItemDataSource);
@@ -360,7 +380,7 @@ public partial class SAV_Database : Form
         public bool IgnoreBackupFiles { get; } = ignoreBackupFiles;
     }
 
-    private void LoadDatabase()
+    private void LoadDatabase(CancellationToken token)
     {
         var settings = Main.Settings;
         var otherPaths = new List<SearchFolderDetail>();
@@ -369,7 +389,9 @@ public partial class SAV_Database : Form
         if (settings.EntityDb.SearchBackups)
             otherPaths.Add(new SearchFolderDetail(Main.BackupPath, false));
 
-        RawDB = LoadPKMSaves(DatabasePath, SAV, otherPaths, settings.EntityDb.SearchExtraSavesDeep);
+        RawDB = LoadEntitiesFromFolder(DatabasePath, SAV, otherPaths, settings.EntityDb.SearchExtraSavesDeep, token);
+        if (token.IsCancellationRequested)
+            return;
 
         // Load stats for pk who do not have any
         foreach (var entry in RawDB)
@@ -381,22 +403,24 @@ public partial class SAV_Database : Form
         try
         {
             while (!IsHandleCreated) { }
+            if (cts.Token.IsCancellationRequested)
+                return;
             BeginInvoke(new MethodInvoker(() => SetResults(RawDB)));
         }
         catch { /* Window Closed? */ }
     }
 
-    private static List<SlotCache> LoadPKMSaves(string pkmdb, SaveFile sav, List<SearchFolderDetail> otherPaths, bool otherDeep)
+    private static List<SlotCache> LoadEntitiesFromFolder(string databaseFolder, SaveFile sav, List<SearchFolderDetail> otherPaths, bool otherDeep, CancellationToken token)
     {
         var dbTemp = new ConcurrentBag<SlotCache>();
         var extensions = new HashSet<string>(EntityFileExtension.GetExtensionsAll().Select(z => $".{z}"));
 
-        var files = Directory.EnumerateFiles(pkmdb, "*", SearchOption.AllDirectories);
+        var files = Directory.EnumerateFiles(databaseFolder, "*", SearchOption.AllDirectories);
         Parallel.ForEach(files, file => SlotInfoLoader.AddFromLocalFile(file, dbTemp, sav, extensions));
 
         foreach (var folder in otherPaths)
         {
-            if (!SaveUtil.GetSavesFromFolder(folder.Path, otherDeep, out IEnumerable<string> paths, folder.IgnoreBackupFiles))
+            if (!SaveUtil.GetSavesFromFolder(folder.Path, otherDeep, token, out var paths, folder.IgnoreBackupFiles))
                 continue;
 
             Parallel.ForEach(paths, file => TryAddPKMsFromSaveFilePath(dbTemp, file));
@@ -486,7 +510,7 @@ public partial class SAV_Database : Form
         Directory.CreateDirectory(path);
 
         foreach (var pk in Results.Select(z => z.Entity))
-            File.WriteAllBytes(Path.Combine(path, Util.CleanFileName(pk.FileName)), pk.DecryptedPartyData);
+            File.WriteAllBytes(Path.Combine(path, PathUtil.CleanFileName(pk.FileName)), pk.DecryptedPartyData);
     }
 
     private void Menu_Import_Click(object sender, EventArgs e)
@@ -541,7 +565,7 @@ public partial class SAV_Database : Form
 
             BatchInstructions = RTB_Instructions.Text,
 
-            Level = int.TryParse(TB_Level.Text, out var lvl) ? lvl : null,
+            Level = byte.TryParse(TB_Level.Text, out var lvl) ? lvl : null,
             SearchLevel = (SearchComparison)CB_Level.SelectedIndex,
             EVType = CB_EVTrain.SelectedIndex,
             IVType = CB_IV.SelectedIndex,

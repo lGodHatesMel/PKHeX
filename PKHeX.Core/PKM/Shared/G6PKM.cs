@@ -45,7 +45,7 @@ public abstract class G6PKM : PKM, ISanityChecksum, IHandlerUpdate
 
     // Complex Generated Attributes
     public abstract uint IV32 { get; set; }
-    public override int Characteristic => EntityCharacteristic.GetCharacteristic(EncryptionConstant, IV32);
+    public override int Characteristic => EntityCharacteristic.GetCharacteristicInit0(EncryptionConstant, IV32);
 
     // Methods
     protected sealed override byte[] Encrypt()
@@ -129,12 +129,4 @@ public abstract class G6PKM : PKM, ISanityChecksum, IHandlerUpdate
     public sealed override int MaxEV => EffortValues.Max252;
     public sealed override int MaxStringLengthTrainer => 12;
     public sealed override int MaxStringLengthNickname => 12;
-}
-
-public interface ISuperTrain
-{
-    uint SuperTrainBitFlags { get; set; }
-    bool SecretSuperTrainingUnlocked { get; set; }
-    bool SecretSuperTrainingComplete { get; set; }
-    int SuperTrainingMedalCount(int lowBitCount = 30);
 }

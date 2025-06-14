@@ -37,7 +37,7 @@ public sealed class LevelVerifier : Verifier
 
             var reqEXP = enc is EncounterStatic2 { DizzyPunchEgg: true }
                 ? 125 // Gen2 Dizzy Punch gifts always have 125 EXP, even if it's more than the Lv5 exp required.
-                : Experience.GetEXP(enc.LevelMin, pk.PersonalInfo.EXPGrowth);
+                : Experience.GetEXP(enc.LevelMin, data.PersonalInfo.EXPGrowth);
             if (reqEXP != pk.EXP)
                 data.AddLine(GetInvalid(LEggEXP));
             return;
@@ -46,14 +46,14 @@ public sealed class LevelVerifier : Verifier
         var lvl = pk.CurrentLevel;
         if (lvl >= 100)
         {
-            var expect = Experience.GetEXP(100, pk.PersonalInfo.EXPGrowth);
+            var expect = Experience.GetEXP(100, data.PersonalInfo.EXPGrowth);
             if (pk.EXP != expect)
                 data.AddLine(GetInvalid(LLevelEXPTooHigh));
         }
 
         if (lvl < pk.MetLevel)
             data.AddLine(GetInvalid(LLevelMetBelow));
-        else if (!enc.IsWithinEncounterRange(pk) && lvl != 100 && pk.EXP == Experience.GetEXP(lvl, pk.PersonalInfo.EXPGrowth))
+        else if (!enc.IsWithinEncounterRange(pk) && lvl != 100 && pk.EXP == Experience.GetEXP(lvl, data.PersonalInfo.EXPGrowth))
             data.AddLine(Get(LLevelEXPThreshold, Severity.Fishy));
         else
             data.AddLine(GetValid(LLevelMetSane));
@@ -80,14 +80,13 @@ public sealed class LevelVerifier : Verifier
         var enc = data.EncounterMatch;
         if (pk.IsEgg)
         {
-            const int elvl = 5;
-            if (elvl != pk.CurrentLevel)
-                data.AddLine(GetInvalid(string.Format(LEggFMetLevel_0, elvl)));
+            if (pk.CurrentLevel != EncounterEgg2.Level)
+                data.AddLine(GetInvalid(string.Format(LEggFMetLevel_0, EncounterEgg2.Level)));
             return;
         }
         if (pk.MetLocation != 0) // crystal
         {
-            int lvl = pk.CurrentLevel;
+            var lvl = pk.CurrentLevel;
             if (lvl < pk.MetLevel)
                 data.AddLine(GetInvalid(LLevelMetBelow));
         }
@@ -96,9 +95,10 @@ public sealed class LevelVerifier : Verifier
         {
             // Pokémon has been traded illegally between games without evolving.
             // Trade evolution species IDs for Gen1 are sequential dex numbers.
+            var names = ParseSettings.SpeciesStrings;
             var species = enc.Species;
-            var evolved = ParseSettings.SpeciesStrings[species + 1];
-            var unevolved = ParseSettings.SpeciesStrings[species];
+            var evolved = names[species + 1];
+            var unevolved = names[species];
             data.AddLine(GetInvalid(string.Format(LEvoTradeReqOutsider, unevolved, evolved)));
         }
     }

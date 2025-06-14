@@ -28,8 +28,8 @@ public sealed record EncounterStatic5Radar(ushort Species, byte Form, AbilityPer
 
     public PK5 ConvertToPKM(ITrainerInfo tr, EncounterCriteria criteria)
     {
+        int language = (int)Language.GetSafeLanguage(Generation, (LanguageID)tr.Language);
         var version = this.GetCompatibleVersion(tr.Version);
-        int lang = (int)Language.GetSafeLanguage(Generation, (LanguageID)tr.Language, version);
         var pi = PersonalTable.B2W2[Species];
         var pk = new PK5
         {
@@ -43,13 +43,13 @@ public sealed record EncounterStatic5Radar(ushort Species, byte Form, AbilityPer
 
             ID32 = tr.ID32,
             Version = version,
-            Language = lang,
+            Language = language,
             OriginalTrainerGender = tr.Gender,
             OriginalTrainerName = tr.OT,
 
             OriginalTrainerFriendship = pi.BaseFriendship,
 
-            Nickname = SpeciesName.GetSpeciesNameGeneration(Species, lang, Generation),
+            Nickname = SpeciesName.GetSpeciesNameGeneration(Species, language, Generation),
         };
 
         EncounterUtil.SetEncounterMoves(pk, version, LevelMin);
@@ -87,12 +87,13 @@ public sealed record EncounterStatic5Radar(ushort Species, byte Form, AbilityPer
             return false;
         return true;
     }
-    private static bool IsMatchLevel(int metLevel)
+
+    private static bool IsMatchLevel(byte metLevel)
     {
         // Level from 5->40 depends on the number of badges
         if (metLevel % 5 != 0)
             return false; // must be a multiple of 5
-        return (uint)(metLevel - 5) <= 35; // 5 <= x <= 40
+        return metLevel - 5u <= 35; // 5 <= x <= 40
     }
 
     private bool IsMatchEggLocation(PKM pk)

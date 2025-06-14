@@ -55,7 +55,7 @@ public abstract class G8PKM : PKM, ISanityChecksum,
     public override bool IsUntraded => Data[0xA8] == 0 && Data[0xA8 + 1] == 0 && Format == Generation; // immediately terminated HandlingTrainerName data (\0)
 
     // Complex Generated Attributes
-    public override int Characteristic => EntityCharacteristic.GetCharacteristic(EncryptionConstant, IV32);
+    public override int Characteristic => EntityCharacteristic.GetCharacteristicInit0(EncryptionConstant, IV32);
 
     // Methods
     protected override byte[] Encrypt()
@@ -460,15 +460,13 @@ public abstract class G8PKM : PKM, ISanityChecksum,
 
     public MarkingColor GetMarking(int index)
     {
-        if ((uint)index >= MarkingCount)
-            throw new ArgumentOutOfRangeException(nameof(index));
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual((uint)index, (uint)MarkingCount);
         return (MarkingColor)((MarkingValue >> (index * 2)) & 3);
     }
 
     public void SetMarking(int index, MarkingColor value)
     {
-        if ((uint)index >= MarkingCount)
-            throw new ArgumentOutOfRangeException(nameof(index));
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual((uint)index, (uint)MarkingCount);
         var shift = index * 2;
         MarkingValue = (ushort)((MarkingValue & ~(0b11 << shift)) | (((byte)value & 3) << shift));
     }

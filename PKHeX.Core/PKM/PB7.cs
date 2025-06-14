@@ -342,7 +342,7 @@ public sealed class PB7 : G6PKM, IHyperTrain, IAwakened, IScaledSizeValue, IComb
     {
         get
         {
-            if (!DateUtil.IsDateValid(2000 + ReceivedYear, ReceivedMonth, ReceivedDay))
+            if (!DateUtil.IsValidDate(2000 + ReceivedYear, ReceivedMonth, ReceivedDay))
                 return null;
             return new DateOnly(ReceivedYear + 2000, ReceivedMonth, ReceivedDay);
         }
@@ -370,7 +370,7 @@ public sealed class PB7 : G6PKM, IHyperTrain, IAwakened, IScaledSizeValue, IComb
     {
         get
         {
-            if (!DateUtil.IsTimeValid(ReceivedHour, ReceivedMinute, ReceivedSecond))
+            if (!DateUtil.IsValidTime(ReceivedHour, ReceivedMinute, ReceivedSecond))
                 return null;
             return new TimeOnly(ReceivedHour, ReceivedMinute, ReceivedSecond);
         }
@@ -443,15 +443,13 @@ public sealed class PB7 : G6PKM, IHyperTrain, IAwakened, IScaledSizeValue, IComb
 
     public MarkingColor GetMarking(int index)
     {
-        if ((uint)index >= MarkingCount)
-            throw new ArgumentOutOfRangeException(nameof(index));
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual((uint)index, (uint)MarkingCount);
         return (MarkingColor)((MarkingValue >> (index * 2)) & 3);
     }
 
     public void SetMarking(int index, MarkingColor value)
     {
-        if ((uint)index >= MarkingCount)
-            throw new ArgumentOutOfRangeException(nameof(index));
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual((uint)index, (uint)MarkingCount);
         var shift = index * 2;
         MarkingValue = (ushort)((MarkingValue & ~(0b11 << shift)) | (((byte)value & 3) << shift));
     }
@@ -516,7 +514,7 @@ public sealed class PB7 : G6PKM, IHyperTrain, IAwakened, IScaledSizeValue, IComb
 
     public override void LoadStats(IBaseStat p, Span<ushort> stats)
     {
-        int level = CurrentLevel;
+        var level = CurrentLevel;
         var nature = Nature;
         int friend = CurrentFriendship; // stats +10% depending on friendship!
         int scalar = (int)(((friend / 255.0f / 10.0f) + 1.0f) * 100.0f);
@@ -535,7 +533,7 @@ public sealed class PB7 : G6PKM, IHyperTrain, IAwakened, IScaledSizeValue, IComb
     /// <param name="iv">Current IV, already accounted for Hyper Training</param>
     /// <param name="level">Current Level</param>
     /// <returns>Initial Stat</returns>
-    private static int GetStat(int baseStat, int iv, int level) => (iv + (2 * baseStat)) * level / 100;
+    private static int GetStat(int baseStat, int iv, byte level) => (iv + (2 * baseStat)) * level / 100;
 
     /// <summary>
     /// Gets the initial stat value with nature amplification applied. Used for all stats except HP.
@@ -546,7 +544,7 @@ public sealed class PB7 : G6PKM, IHyperTrain, IAwakened, IScaledSizeValue, IComb
     /// <param name="nature"><see cref="PKM.Nature"/></param>
     /// <param name="statIndex">Stat amp index in the nature amp table</param>
     /// <returns>Initial Stat with nature amplification applied.</returns>
-    private static int GetStat(int baseStat, int iv, int level, Nature nature, int statIndex)
+    private static int GetStat(int baseStat, int iv, byte level, Nature nature, int statIndex)
     {
         int initial = GetStat(baseStat, iv, level) + 5;
         return NatureAmp.AmplifyStat(nature, statIndex, initial);
@@ -559,7 +557,7 @@ public sealed class PB7 : G6PKM, IHyperTrain, IAwakened, IScaledSizeValue, IComb
         get
         {
             var p = PersonalInfo;
-            int level = CurrentLevel;
+            var level = CurrentLevel;
             var nature = Nature;
             int scalar = CPScalar;
 

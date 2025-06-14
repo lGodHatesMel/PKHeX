@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -174,7 +175,7 @@ public static class WinFormsUtil
             default:
                 throw new IndexOutOfRangeException(nameof(e.ScrollOrientation));
         }
-        static int Clamp(int value, ScrollProperties prop) => Math.Max(prop.Minimum, Math.Min(prop.Maximum, value));
+        static int Clamp(int value, ScrollProperties prop) => Math.Clamp(value, prop.Minimum, prop.Maximum);
     }
 
     /// <summary>
@@ -194,14 +195,30 @@ public static class WinFormsUtil
         control.ValueMember = nameof(ComboItem.Value);
     }
 
-    public static void SetValueClamped(this NumericUpDown nud, int value) => nud.Value = Math.Min(nud.Maximum, Math.Max(nud.Minimum, value));
-    public static void SetValueClamped(this NumericUpDown nud, uint value) => nud.Value = Math.Min(nud.Maximum, Math.Max(nud.Minimum, value));
+    public static void SetValueClamped(this NumericUpDown nud, int value) => nud.Value = Math.Clamp(value, nud.Minimum, nud.Maximum);
+    public static void SetValueClamped(this NumericUpDown nud, uint value) => nud.Value = Math.Clamp(value, nud.Minimum, nud.Maximum);
 
     public static void RemoveDropCB(object? sender, KeyEventArgs e)
     {
         if (sender is null)
             return;
         ((ComboBox)sender).DroppedDown = false;
+    }
+
+    public static void MouseWheelIncrement1(object? sender, MouseEventArgs e) => Adjust(sender, e, 1);
+    public static void MouseWheelIncrement4(object? sender, MouseEventArgs e) => Adjust(sender, e, 4);
+
+    private static void Adjust(object? sender, MouseEventArgs e, uint increment)
+    {
+        if (sender is not TextBoxBase tb)
+            return;
+        var text = tb.Text;
+        var value = Util.ToUInt32(text);
+        if (e.Delta > 0)
+            value += increment;
+        else if (value >= increment)
+            value -= increment;
+        tb.Text = value.ToString();
     }
 
     /// <summary>
@@ -259,7 +276,7 @@ public static class WinFormsUtil
     /// <param name="extensions">Misc extensions of <see cref="PKM"/> files supported by the Save File.</param>
     /// <param name="path">Output result path</param>
     /// <returns>Result of the dialog menu indicating if a file is to be loaded from the output path.</returns>
-    public static bool OpenSAVPKMDialog(IEnumerable<string> extensions, out string? path)
+    public static bool OpenSAVPKMDialog(IEnumerable<string> extensions, [NotNullWhen(true)] out string? path)
     {
         var sb = new StringBuilder(128);
         foreach (var type in extensions)
@@ -291,7 +308,8 @@ public static class WinFormsUtil
         {
             try
             {
-                var sav = SaveFinder.FindMostRecentSaveFile();
+                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var sav = SaveFinder.FindMostRecentSaveFile(cts.Token);
                 return sav?.Metadata.FilePath;
             }
             catch (Exception ex)
@@ -318,7 +336,7 @@ public static class WinFormsUtil
         using var sfd = new SaveFileDialog();
         sfd.Filter = genericFilter;
         sfd.DefaultExt = pkx;
-        sfd.FileName = Util.CleanFileName(pk.FileName);
+        sfd.FileName = PathUtil.CleanFileName(pk.FileName);
         if (sfd.ShowDialog() != DialogResult.OK)
             return false;
 
@@ -349,7 +367,7 @@ public static class WinFormsUtil
     /// Opens a dialog to save a <see cref="SaveFile"/> file.
     /// </summary>
     /// <param name="sav"><see cref="SaveFile"/> to be saved.</param>
-    /// <param name="currentBox">Box the player will be greeted with when accessing the PC ingame.</param>
+    /// <param name="currentBox">Box the player will be greeted with when accessing the PC in-game.</param>
     /// <returns>True if the file was saved.</returns>
     public static bool ExportSAVDialog(SaveFile sav, int currentBox = 0)
     {
@@ -376,7 +394,7 @@ public static class WinFormsUtil
 
     private static void ExportSAV(SaveFile sav, string path)
     {
-        var ext = Path.GetExtension(path).ToLowerInvariant();
+        var ext = Path.GetExtension(path.AsSpan());
         var flags = sav.Metadata.GetSuggestedFlags(ext);
 
         try
@@ -388,16 +406,10 @@ public static class WinFormsUtil
         }
         catch (Exception x)
         {
-            switch (x)
-            {
-                case UnauthorizedAccessException:
-                case FileNotFoundException:
-                case IOException:
-                    Error(MsgFileWriteFail + Environment.NewLine + x.Message, MsgFileWriteProtectedAdvice);
-                    break;
-                default:
-                    throw;
-            }
+            if (x is UnauthorizedAccessException or FileNotFoundException or IOException)
+                Error(MsgFileWriteFail + Environment.NewLine + x.Message, MsgFileWriteProtectedAdvice);
+            else // Don't know what threw, but it wasn't I/O related.
+                throw;
         }
     }
 
@@ -410,7 +422,7 @@ public static class WinFormsUtil
     {
         using var sfd = new SaveFileDialog();
         sfd.Filter = GetMysterGiftFilter(gift.Context);
-        sfd.FileName = Util.CleanFileName(gift.FileName);
+        sfd.FileName = PathUtil.CleanFileName(gift.FileName);
         if (sfd.ShowDialog() != DialogResult.OK)
             return false;
 

@@ -165,7 +165,15 @@ public partial class SAV_Encounters : Form
         var enc = Results[index];
         var criteria = GetCriteria(enc, Main.Settings.EncounterDb);
         var trainer = Trainers.GetTrainer(enc.Version, enc.Generation <= 2 ? (LanguageID)SAV.Language : null) ?? SAV;
-        var pk = enc.ConvertToPKM(trainer, criteria);
+        var temp = enc.ConvertToPKM(trainer, criteria);
+        var pk = EntityConverter.ConvertToType(temp, SAV.PKMType, out var c);
+        if (pk is null)
+        {
+            WinFormsUtil.Error(c.GetDisplayString(temp, SAV.PKMType));
+            return;
+        }
+
+        SAV.AdaptToSaveFile(pk);
         pk.RefreshChecksum();
         PKME_Tabs.PopulateFields(pk, false);
         slotSelected = index;
@@ -204,11 +212,15 @@ public partial class SAV_Encounters : Form
 
         var Any = new ComboItem(MsgAny, 0);
 
-        var DS_Species = new List<ComboItem>(GameInfo.SpeciesDataSource);
-        DS_Species.RemoveAt(0); DS_Species.Insert(0, Any); CB_Species.DataSource = DS_Species;
+        var source = GameInfo.FilteredSources;
+        var species = new List<ComboItem>(GameInfo.SpeciesDataSource)
+        {
+            [0] = Any // Replace (None) with "Any"
+        };
+        CB_Species.DataSource = species;
 
         // Set the Move ComboBoxes too.
-        var DS_Move = new List<ComboItem>(GameInfo.MoveDataSource);
+        var DS_Move = new List<ComboItem>(source.Moves);
         DS_Move.RemoveAt(0); DS_Move.Insert(0, Any);
         {
             foreach (ComboBox cb in new[] { CB_Move1, CB_Move2, CB_Move3, CB_Move4 })

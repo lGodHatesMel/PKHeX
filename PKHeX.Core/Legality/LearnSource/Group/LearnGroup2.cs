@@ -3,7 +3,7 @@ using System;
 namespace PKHeX.Core;
 
 /// <summary>
-/// Group that checks the source of a move in <see cref="GameVersion.Gen2"/>.
+/// Group that checks the source of a move in <see cref="EntityContext.Gen2"/>.
 /// </summary>
 public sealed class LearnGroup2 : ILearnGroup
 {
@@ -35,7 +35,7 @@ public sealed class LearnGroup2 : ILearnGroup
             Check(result, current, pk, evos[i], i, option, types);
         }
 
-        if (enc is EncounterEgg { Generation: Generation } egg)
+        if (enc is EncounterEgg2 egg)
             CheckEncounterMoves(result, current, egg);
 
         bool vc1 = pk.VC1;
@@ -44,6 +44,9 @@ public sealed class LearnGroup2 : ILearnGroup
 
         // Uh-oh, not all moves are verified yet.
         // To visit Gen1, we need to invalidate moves that can't be learned in Gen1 or re-learned in Gen2.
+        if (GetPrevious(pk, history, enc, option) is null)
+            return true; // can't even visit, don't bother purging.
+
         for (int i = 0; i < result.Length; i++)
         {
             if (current[i] <= Legal.MaxMoveID_1)
@@ -79,7 +82,7 @@ public sealed class LearnGroup2 : ILearnGroup
             LearnSource2GS.GetEncounterMoves(enc, moves);
     }
 
-    private static void CheckEncounterMoves(Span<MoveResult> result, ReadOnlySpan<ushort> current, EncounterEgg egg)
+    private static void CheckEncounterMoves(Span<MoveResult> result, ReadOnlySpan<ushort> current, EncounterEgg2 egg)
     {
         ILearnSource inst = egg.Version == GameVersion.C ? LearnSource2C.Instance : LearnSource2GS.Instance;
         var eggMoves = inst.GetEggMoves(egg.Species, egg.Form);
@@ -107,9 +110,7 @@ public sealed class LearnGroup2 : ILearnGroup
         if (!c.TryGetPersonal(evo.Species, evo.Form, out var cp))
             return; // should never happen.
 
-        if (ParseSettings.AllowGen2MoveReminder(pk))
-            evo = evo with { LevelMin = 1 };
-
+        bool stad2 = ParseSettings.AllowGen2MoveReminder(pk);
         bool kor = pk.Korean; // Crystal is not available to Korean games.
 
         for (int i = result.Length - 1; i >= 0; i--)
@@ -132,6 +133,13 @@ public sealed class LearnGroup2 : ILearnGroup
             chk = c.GetCanLearn(pk, cp, evo, move, types);
             if (chk != default && GetIsPreferable(entry, chk, stage))
                 entry = new(chk, (byte)stage, Generation);
+
+            if (stad2)
+            {
+                chk = LearnSource2Stadium.Instance.GetCanRelearn(evo, move, types);
+                if (chk != default && GetIsPreferable(entry, chk, stage))
+                    entry = new(chk, (byte)stage, Generation);
+            }
         }
     }
 
@@ -169,13 +177,12 @@ public sealed class LearnGroup2 : ILearnGroup
 
     private static void GetAllMoves(Span<bool> result, PKM pk, EvoCriteria evo, MoveSourceType types)
     {
-        if (ParseSettings.AllowGen2MoveReminder(pk))
-            evo = evo with { LevelMin = 1 };
-
         LearnSource2GS.Instance.GetAllMoves(result, pk, evo, types);
         if (pk.Korean)
             return;
         LearnSource2C.Instance.GetAllMoves(result, pk, evo, types);
+        if (ParseSettings.AllowGen2MoveReminder(pk))
+            LearnSource2Stadium.Instance.GetAllMoves(result, pk, evo, types);
     }
 
     private static void FlagEncounterMoves(PKM pk, IEncounterTemplate enc, Span<bool> result)

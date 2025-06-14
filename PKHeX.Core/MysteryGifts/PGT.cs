@@ -1,15 +1,17 @@
 using System;
 using static System.Buffers.Binary.BinaryPrimitives;
 using static PKHeX.Core.GiftType4;
+using static PKHeX.Core.RandomCorrelationRating;
 
 namespace PKHeX.Core;
 
 /// <summary>
 /// Generation 4 Mystery Gift Template File (Inner Gift Data, no card data)
 /// </summary>
-public sealed class PGT(byte[] Data) : DataMysteryGift(Data), IRibbonSetEvent3, IRibbonSetEvent4, IRandomCorrelation
+public sealed class PGT : DataMysteryGift, IRibbonSetEvent3, IRibbonSetEvent4, IRandomCorrelation
 {
     public PGT() : this(new byte[Size]) { }
+    public PGT(Memory<byte> raw) : base(raw) { }
 
     public const int Size = 0x104; // 260
     public override byte Generation => 4;
@@ -36,16 +38,16 @@ public sealed class PGT(byte[] Data) : DataMysteryGift(Data), IRibbonSetEvent3, 
     public override bool GiftUsed { get => false; set { } }
     public override Shiny Shiny => IsEgg ? Shiny.Random : PK.PID == 1 ? Shiny.Never : IsShiny ? Shiny.Always : Shiny.Never;
 
-    public ushort CardType { get => ReadUInt16LittleEndian(Data.AsSpan(0x0)); set => WriteUInt16LittleEndian(Data.AsSpan(0x0), value); }
+    public ushort CardType { get => ReadUInt16LittleEndian(Data); set => WriteUInt16LittleEndian(Data, value); }
     public byte Slot { get => Data[2]; set => Data[2] = value; }
     public byte Detail { get => Data[3]; set => Data[3] = value; }
-    public override int ItemID { get => ReadInt32LittleEndian(Data.AsSpan(0x4)); set => WriteInt32LittleEndian(Data.AsSpan(0x4), value); }
-    public int ItemSubID { get => ReadInt32LittleEndian(Data.AsSpan(0x8)); set => WriteInt32LittleEndian(Data.AsSpan(0x8), value); }
+    public override int ItemID { get => ReadInt32LittleEndian(Data[0x4..]); set => WriteInt32LittleEndian(Data[0x4..], value); }
+    public int ItemSubID { get => ReadInt32LittleEndian(Data[0x8..]); set => WriteInt32LittleEndian(Data[0x8..], value); }
     public int PokewalkerCourseID { get => Data[0x4]; set => Data[0x4] = (byte)value; }
 
     public PK4 PK
     {
-        get => _pk ??= new PK4(Data.AsSpan(8, PokeCrypto.SIZE_4PARTY).ToArray());
+        get => _pk ??= new PK4(Data.Slice(8, PokeCrypto.SIZE_4PARTY).ToArray());
         set
         {
             _pk = value;
@@ -53,14 +55,14 @@ public sealed class PGT(byte[] Data) : DataMysteryGift(Data), IRibbonSetEvent3, 
             bool zero = Array.TrueForAll(data, static z => z == 0); // all zero
             if (!zero)
                 data = PokeCrypto.EncryptArray45(data);
-            data.CopyTo(Data, 8);
+            data.CopyTo(Data[8..]);
         }
     }
 
-    public override byte[] Write()
+    public override ReadOnlySpan<byte> Write()
     {
         // Ensure PGT content is encrypted
-        var clone = new PGT((byte[])Data.Clone());
+        var clone = new PGT(Data.ToArray());
         clone.VerifyPKEncryption();
         return clone.Data;
     }
@@ -75,7 +77,7 @@ public sealed class PGT(byte[] Data) : DataMysteryGift(Data), IRibbonSetEvent3, 
     {
         if (GiftType is not (Pokémon or PokémonEgg))
             return false; // not encrypted
-        if (ReadUInt32LittleEndian(Data.AsSpan(0x64 + 8)) != 0)
+        if (ReadUInt32LittleEndian(Data[(0x64 + 8)..]) != 0)
             return false; // already encrypted (unused PK4 field, zero)
         EncryptPK();
         return true;
@@ -83,7 +85,7 @@ public sealed class PGT(byte[] Data) : DataMysteryGift(Data), IRibbonSetEvent3, 
 
     private void EncryptPK()
     {
-        var span = Data.AsSpan(8, PokeCrypto.SIZE_4PARTY);
+        var span = Data.Slice(8, PokeCrypto.SIZE_4PARTY);
         var ekdata = PokeCrypto.EncryptArray45(span);
         ekdata.CopyTo(span);
     }
@@ -167,7 +169,7 @@ public sealed class PGT(byte[] Data) : DataMysteryGift(Data), IRibbonSetEvent3, 
             return;
 
         var seed = Util.Rand32();
-        bool filterIVs = criteria.IsSpecifiedIVsAny(out var count) && count <= 2;
+        bool filterIVs = criteria.IsSpecifiedIVs(2);
         while (true)
         {
             // Generate PID
@@ -302,7 +304,7 @@ public sealed class PGT(byte[] Data) : DataMysteryGift(Data), IRibbonSetEvent3, 
 
         // Manaphy is the only PGT gift egg! (and the only gift that needs a version to be set)
         var version = trainer.Version;
-        if (!version.IsValidSavedVersion() || !GameVersion.Gen4.ContainsFromLumped(version))
+        if (!version.IsGen4())
             version = GameVersion.D;
         pk4.Version = version;
 
@@ -316,6 +318,9 @@ public sealed class PGT(byte[] Data) : DataMysteryGift(Data), IRibbonSetEvent3, 
         pk4.EggLocation = Locations.Ranger4;
         pk4.EggMetDate = pk4.MetDate = EncounterDate.GetDateNDS();
     }
+
+    public bool HasPID => PK.PID > 1; // 0=Random, 1=Random (Anti-Shiny). 0 was never used in any Gen4 gift (all non-shiny).
+    public bool HasIVs => (PK.IV32 & 0x3FFF_FFFFu) != 0; // ignore Nickname/Egg flag bits
 
     private static void SetPINGA(PK4 pk4, PersonalInfo4 pi, EncounterCriteria criteria)
     {
@@ -334,7 +339,7 @@ public sealed class PGT(byte[] Data) : DataMysteryGift(Data), IRibbonSetEvent3, 
             pk4.IV32 |= criteria.GetCombinedIVs();
             return;
         }
-        if (criteria.IsSpecifiedIVsAny(out _))
+        if (criteria.IsSpecifiedIVs())
         {
             criteria.SetRandomIVs(pk4);
             return;
@@ -449,13 +454,13 @@ public sealed class PGT(byte[] Data) : DataMysteryGift(Data), IRibbonSetEvent3, 
     public bool RibbonChampionWorld { get => PK.RibbonChampionWorld; set => PK.RibbonChampionWorld = value; }
     public bool RibbonSouvenir { get => PK.RibbonSouvenir; set => PK.RibbonSouvenir = value; }
 
-    public bool IsCompatible(PIDType type, PKM pk)
+    public RandomCorrelationRating IsCompatible(PIDType type, PKM pk)
     {
         if (IsManaphyEgg)
-            return IsG4ManaphyPIDValid(type, pk);
+            return IsG4ManaphyPIDValid(type, pk) ? Match : Mismatch;
         if (PK.PID != 1 && type == PIDType.G5MGShiny)
-            return true;
-        return type == PIDType.None;
+            return Match;
+        return type is PIDType.None ? Match : Mismatch;
     }
 
     public PIDType GetSuggestedCorrelation()

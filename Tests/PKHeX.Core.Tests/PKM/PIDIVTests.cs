@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using FluentAssertions;
 using Xunit;
 
@@ -24,7 +23,7 @@ public class PIDIVTest
         var gk1 = new PK3();
         PIDGenerator.SetValuesFromSeed(gk1, ga1.Type, ga1.OriginSeed);
         gk1.PID.Should().Be(pk1.PID);
-        gk1.IVs.SequenceEqual(pk1.IVs).Should().BeTrue();
+        gk1.IV32.Should().Be(pk1.IV32);
     }
 
     [Fact]
@@ -61,7 +60,7 @@ public class PIDIVTest
         var gk3 = new PK3();
         PIDGenerator.SetValuesFromSeed(gk3, PIDType.CXD, pv.OriginSeed);
         gk3.PID.Should().Be(pk3.PID);
-        gk3.IVs.SequenceEqual(pk3.IVs).Should().BeTrue();
+        gk3.IV32.Should().Be(pk3.IV32);
     }
 
     [Fact]
@@ -75,7 +74,7 @@ public class PIDIVTest
         var gkC = new PK3();
         PIDGenerator.SetValuesFromSeed(gkC, PIDType.Channel, pv.OriginSeed);
         gkC.PID.Should().Be(pkC.PID);
-        gkC.IVs.SequenceEqual(pkC.IVs).Should().BeTrue();
+        gkC.IV32.Should().Be(pkC.IV32);
     }
 
     [Fact]
@@ -110,7 +109,7 @@ public class PIDIVTest
         var gkRS = new PK3 { TID16 = 30317, SID16 = 00000 };
         PIDGenerator.SetValuesFromSeed(gkRS, PIDType.BACD_S, bfix);
         gkRS.PID.Should().Be(pkRS.PID);
-        gkRS.IVs.SequenceEqual(pkRS.IVs).Should().BeTrue();
+        gkRS.IV32.Should().Be(pkRS.IV32);
 
         // Unrestricted Antishiny nyx
         var nyxUA = new PK3 {PID = 0xBD3DF676, IVs = [00, 15, 05, 04, 21, 05], TID16 = 00080, SID16 = 00000};
@@ -142,19 +141,21 @@ public class PIDIVTest
         MethodFinder.Analyze(pkS5).Type.Should().Be(PIDType.G5MGShiny);
     }
 
-    [Fact]
-    public void PIDIVPokeSpotTest()
-    {
-        // XD PokeSpots: Check all 3 Encounter Slots (examples are one for each location).
-        var pkPS0 = new PK3 { PID = 0x7B2D9DA7 }; // Zubat (Cave)
-        MethodFinder.GetPokeSpotSeedFirst(pkPS0, 0).Type.Should().Be(PIDType.PokeSpot); // PokeSpot encounter info mismatch (Common)
+    [Theory]
+    [InlineData(0x7B2D9DA7, 0)] // Zubat (Cave) (Common)
+    [InlineData(0x3EE9AF66, 1)] // Gligar (Rock) (Uncommon)
+    [InlineData(0x9B667F3C, 2)] // Surskit (Oasis) (Rare)
+    public void PIDIVPokeSpotTest(uint pid, byte slot) => MethodPokeSpot.TryGetOriginSeedPID(pid, slot, out _).Should().BeTrue();
 
-        var pkPS1 = new PK3 { PID = 0x3EE9AF66 }; // Gligar (Rock)
-        MethodFinder.GetPokeSpotSeedFirst(pkPS1, 1).Type.Should().Be(PIDType.PokeSpot); // PokeSpot encounter info mismatch (Uncommon)
-
-        var pkPS2 = new PK3 { PID = 0x9B667F3C }; // Surskit (Oasis)
-        MethodFinder.GetPokeSpotSeedFirst(pkPS2, 2).Type.Should().Be(PIDType.PokeSpot); // PokeSpot encounter info mismatch (Rare)
-    }
+    [Theory]
+    [InlineData(62714, 62938)]
+    [InlineData(05724, 31840)]
+    [InlineData(31827, 52374)]
+    [InlineData(01337, 01337)]
+    [InlineData(34952, 34952)]
+    [InlineData(01337, 00001, false)]
+    [InlineData(42069, 13370, false)]
+    public void CXDTrainerTest(ushort tid, ushort sid, bool expect = true) => MethodCXD.TryGetSeedTrainerID(tid, sid, out _).Should().Be(expect);
 
     [Theory]
     [InlineData(30, 31, 31, 14, 31, 31, 0x28070031, 024, PokewalkerSeedType.NoStroll)]

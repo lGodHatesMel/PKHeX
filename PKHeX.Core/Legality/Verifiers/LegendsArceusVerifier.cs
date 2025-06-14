@@ -59,7 +59,7 @@ public sealed class LegendsArceusVerifier : Verifier
 
     private static void CheckLearnset(LegalityAnalysis data, PA8 pa)
     {
-        var moveCount = GetMoveCount(pa);
+        var moveCount = pa.MoveCount;
         if (moveCount == 4)
             return;
 
@@ -138,7 +138,7 @@ public sealed class LegendsArceusVerifier : Verifier
         }
     }
 
-    private static int AddMasteredMissing(PA8 pa, Span<ushort> current, int ctr, Learnset baseLearn, Learnset currentLearn, int level)
+    private static int AddMasteredMissing(PA8 pa, Span<ushort> current, int ctr, Learnset baseLearn, Learnset currentLearn, byte level)
     {
         var purchased = pa.Permit.RecordPermitIndexes;
         for (int i = 0; i < purchased.Length; i++)
@@ -154,9 +154,8 @@ public sealed class LegendsArceusVerifier : Verifier
 
             // Check if we can swap it into the moveset after it evolves.
             var move = purchased[i];
-            var baseLevel = baseLearn.GetLevelLearnMove(move);
-            var mustKnow = baseLevel is not -1 && baseLevel <= pa.MetLevel;
-            if (!mustKnow && currentLearn.GetLevelLearnMove(move) != level)
+            var mustKnow = baseLearn.TryGetLevelLearnMove(move, out var baseLevel) && baseLevel <= pa.MetLevel;
+            if (!mustKnow && currentLearn.TryGetLevelLearnMove(move, out var c2) && c2 != level)
                 continue;
 
             if (!current.Contains(move))
@@ -165,16 +164,6 @@ public sealed class LegendsArceusVerifier : Verifier
                 return 4;
         }
         return ctr;
-    }
-
-    private static int GetMoveCount(PA8 pa)
-    {
-        var count = 0;
-        if (pa.Move1 != 0) count++;
-        if (pa.Move2 != 0) count++;
-        if (pa.Move3 != 0) count++;
-        if (pa.Move4 != 0) count++;
-        return count;
     }
 
     private void CheckMastery(LegalityAnalysis data, PA8 pa)
@@ -225,16 +214,15 @@ public sealed class LegendsArceusVerifier : Verifier
         // Check if the move can be learned in the learnset...
         // Changing forms do not have separate tutor permissions, so we don't need to bother with form changes.
         // Level up movepools can grant moves for mastery at lower levels for earlier evolutions... find the minimum.
-        int level = 101;
+        byte level = 101;
         foreach (var evo in data.Info.EvoChainsAllGens.Gen8a)
         {
             var moveset = LearnSource8LA.Instance.GetLearnset(evo.Species, evo.Form);
-            var lvl = moveset.GetLevelLearnMove(moves[i]);
-            if (lvl == -1)
+            if (!moveset.TryGetLevelLearnMove(moves[i], out var lvl))
                 continue; // cannot learn via level up
             level = Math.Min(lvl, level);
         }
-        return pa.CurrentLevel >= level;
+        return level <= pa.CurrentLevel;
     }
 
     private void VerifyAlphaMove(LegalityAnalysis data, PA8 pa, ushort alphaMove, IPermitRecord permit)

@@ -289,7 +289,7 @@ public sealed class PK5 : PKM, ISanityChecksum,
     // Generated Attributes
     public override uint PSV => ((PID >> 16) ^ (PID & 0xFFFF)) >> 3;
     public override uint TSV => (uint)(TID16 ^ SID16) >> 3;
-    public override int Characteristic => EntityCharacteristic.GetCharacteristic(PID, IV32);
+    public override int Characteristic => EntityCharacteristic.GetCharacteristicInit0(PID, IV32);
 
     // Maximums
     public override ushort MaxMoveID => Legal.MaxMoveID_5;
@@ -343,15 +343,13 @@ public sealed class PK5 : PKM, ISanityChecksum,
 
     public bool GetMarking(int index)
     {
-        if ((uint)index >= MarkingCount)
-            throw new ArgumentOutOfRangeException(nameof(index));
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual((uint)index, (uint)MarkingCount);
         return ((MarkingValue >> index) & 1) != 0;
     }
 
     public void SetMarking(int index, bool value)
     {
-        if ((uint)index >= MarkingCount)
-            throw new ArgumentOutOfRangeException(nameof(index));
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual((uint)index, (uint)MarkingCount);
         MarkingValue = (byte)((MarkingValue & ~(1 << index)) | ((value ? 1 : 0) << index));
     }
 
