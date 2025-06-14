@@ -4,9 +4,6 @@ using System.IO;
 
 namespace PKHeX.Core;
 
-/// <summary>
-/// Logic for creating file names for <see cref="PKM"/> data.
-/// </summary>
 public static class EntityFileNamer
 {
     /// <summary>
@@ -117,7 +114,17 @@ public sealed class DefaultEntityNamer : IFileNamer<PKM>
 
         var form = gb.Form != 0 ? $"-{gb.Form:00}" : string.Empty;
         var star = gb.IsShiny ? " ★" : string.Empty;
-        return $"{gb.Species:0000}{form}{star} - {gb.Nickname} - {checksum:X4}";
+
+        string speciesName = SpeciesName.GetSpeciesNameGeneration(gb.Species, (int)LanguageID.English, gb.Format);
+        string nature = "None";
+        string ivList = $"{gb.IV_HP:00}.{gb.IV_ATK:00}.{gb.IV_DEF:00}.{gb.IV_SPA:00}.{gb.IV_SPD:00}.{gb.IV_SPE:00}";
+        string otName = string.IsNullOrEmpty(gb.OriginalTrainerName) ? "Unknown" : gb.OriginalTrainerName;
+        otName = string.Concat(otName.Split(Path.GetInvalidFileNameChars())).Trim();
+        string tidFormatted = $"{gb.TID16:00000}";
+        string ball = "Poke";
+        string legality = new LegalityAnalysis(gb).Valid ? "Legal" : "Illegal";
+
+        return $"{gb.Species:0000}{form}{star} - {speciesName} - {nature} - {ivList} - {otName} - {tidFormatted} - {ball} - {legality}";
     }
 }
 
