@@ -168,8 +168,8 @@ public static class CommonEdits
         ReadOnlySpan<ushort> moves = set.Moves;
         if (moves[0] != 0)
             pk.SetMoves(moves, true);
-        if (Legal.IsPPUpAvailable(pk))
-            pk.SetMaximumPPUps(moves);
+        // if (Legal.IsPPUpAvailable(pk))
+        //     pk.SetMaximumPPUps(moves);
 
         pk.ApplyHeldItem(set.HeldItem, set.Context);
         pk.CurrentLevel = set.Level;
@@ -261,6 +261,7 @@ public static class CommonEdits
         pk.ResetPartyStats();
         pk.RefreshChecksum();
     }
+
 
     /// <summary>
     /// Sets the <see cref="PKM.HeldItem"/> value depending on the current format and the provided item index &amp; format.

@@ -36,7 +36,7 @@ public static class MoveApplicator
     {
         Span<ushort> moves = stackalloc ushort[4];
         pk.GetMoves(moves);
-        pk.SetMaximumPPUps(moves);
+        // pk.SetMaximumPPUps(moves);
     }
 
     /// <summary>
@@ -62,8 +62,8 @@ public static class MoveApplicator
         }
 
         pk.SetMoves(moves);
-        if (maxPP && Legal.IsPPUpAvailable(pk))
-            pk.SetMaximumPPUps(moves);
+        // if (maxPP && Legal.IsPPUpAvailable(pk))
+            // pk.SetMaximumPPUps(moves);
         pk.FixMoves();
     }
 
