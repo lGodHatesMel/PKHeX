@@ -117,7 +117,15 @@ public sealed class DefaultEntityNamer : IFileNamer<PKM>
 
         var form = gb.Form != 0 ? $"-{gb.Form:00}" : string.Empty;
         var star = gb.IsShiny ? " ★" : string.Empty;
-        return $"{gb.Species:0000}{form}{star} - {gb.Nickname} - {checksum:X4}";
+        // GHM
+        var speciesName = SpeciesName.GetSpeciesNameGeneration(gb.Species, (int)LanguageID.English, gb.Format);
+        var nature = (Nature)gb.Nature;
+        var ivs = $"{gb.IV_HP:00}.{gb.IV_ATK:00}.{gb.IV_DEF:00}.{gb.IV_SPA:00}.{gb.IV_SPD:00}.{gb.IV_SPE:00}";
+        var otName = string.IsNullOrEmpty(gb.OriginalTrainerName) ? "Unknown" : string.Concat(gb.OriginalTrainerName.Split(Path.GetInvalidFileNameChars())).Trim();
+        var trainerID = gb.Generation >= 7 ? $"{gb.TrainerTID7:000000}" : $"{gb.TID16:00000}";
+        var ball = gb.Ball != (int)Ball.None ? GameInfo.Strings.balllist[gb.Ball].Split(' ')[0] : "None";
+
+        return $"{gb.Species:0000}{form}{star} - {speciesName} - {nature} - {ivs} - {otName} - {trainerID} - {ball}";
     }
 }
 
