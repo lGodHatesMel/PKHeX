@@ -30,7 +30,7 @@ public sealed class ShowdownSet : IBattleTemplate
     public byte? Gender { get; private set; }
     public int HeldItem { get; private set; }
     public int Ability { get; private set; } = -1;
-    public byte Level { get; private set; } = 100;
+    public byte Level { get; private set; } = Experience.MaxLevel;
     public bool Shiny { get; private set; }
     public byte Friendship { get; private set; } = 255;
     public Nature Nature { get; private set; } = Nature.Random;
@@ -359,7 +359,7 @@ public sealed class ShowdownSet : IBattleTemplate
     {
         if (!byte.TryParse(value.Trim(), out var val))
             return false;
-        if ((uint)val is 0 or > 100)
+        if ((uint)val is 0 or > Experience.MaxLevel)
             return false;
         Level = val;
         return true;
@@ -528,7 +528,7 @@ public sealed class ShowdownSet : IBattleTemplate
                 break;
 
             // Stats
-            case BattleTemplateToken.Level when Level != 100:
+            case BattleTemplateToken.Level when Level != Experience.MaxLevel:
                 result.Add(cfg.Push(token, Level));
                 break;
             case BattleTemplateToken.Friendship when Friendship != 255:
@@ -994,7 +994,7 @@ public sealed class ShowdownSet : IBattleTemplate
 
         // Defined Hidden Power
         var type = GetHiddenPowerType(moveString[(hiddenPowerName.Length + 1)..]);
-        var types = strings.types.AsSpan(1, HiddenPower.TypeCount);
+        var types = strings.HiddenPowerTypes;
         int hpVal = StringUtil.FindIndexIgnoreCase(types, type); // Get HP Type
         if (hpVal == -1)
             return hiddenPowerName;

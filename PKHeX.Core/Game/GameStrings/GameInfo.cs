@@ -7,7 +7,11 @@ namespace PKHeX.Core;
 /// </summary>
 public static class GameInfo
 {
-    private static readonly GameStrings?[] Languages = new GameStrings[GameLanguage.LanguageCount];
+    private static readonly LanguageStorage<GameStrings> Languages = new GameStringResourceSet();
+    private sealed record GameStringResourceSet : LanguageStorage<GameStrings>
+    {
+        protected override GameStrings Create(string language) => new(language);
+    }
 
     public static string CurrentLanguage { get; set; } = GameLanguage.DefaultLanguage;
     public static readonly IReadOnlyList<string> GenderSymbolUnicode = ["♂", "♀", "-"];
@@ -22,15 +26,11 @@ public static class GameInfo
         set => Sources = new GameDataSource(_strings = value);
     }
 
-    public static GameStrings GetStrings(string lang)
-    {
-        int index = GameLanguage.GetLanguageIndex(lang);
-        return Languages[index] ??= new GameStrings(lang);
-    }
+    public static GameStrings GetStrings(string lang) => Languages.Get(lang);
 
     public static string GetVersionName(GameVersion version)
     {
-        foreach (var kvp in VersionDataSource)
+        foreach (var kvp in Sources.VersionDataSource)
         {
             if (kvp.Value == (int)version)
                 return kvp.Text;
@@ -38,19 +38,8 @@ public static class GameInfo
         return version.ToString();
     }
 
-    // DataSource providing
-    public static IReadOnlyList<ComboItem> ItemDataSource => FilteredSources.Items;
-    public static IReadOnlyList<ComboItem> SpeciesDataSource => Sources.SpeciesDataSource;
-    public static IReadOnlyList<ComboItem> BallDataSource => Sources.BallDataSource;
-    public static IReadOnlyList<ComboItem> NatureDataSource => Sources.NatureDataSource;
-    public static IReadOnlyList<ComboItem> AbilityDataSource => Sources.AbilityDataSource;
-    public static IReadOnlyList<ComboItem> VersionDataSource => Sources.VersionDataSource;
-    public static IReadOnlyList<ComboItem> MoveDataSource => Sources.HaXMoveDataSource;
-    public static IReadOnlyList<ComboItem> GroundTileDataSource => Sources.GroundTileDataSource;
-    public static IReadOnlyList<ComboItem> Regions => GameDataSource.Regions;
-
     public static IReadOnlyList<ComboItem> LanguageDataSource(byte generation)
-        => GameDataSource.LanguageDataSource(generation);
+        => Sources.LanguageDataSource(generation);
 
     /// <summary>
     /// Gets the location name for the specified parameters.

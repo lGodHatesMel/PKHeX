@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace PKHeX.Core;
 
 /// <summary>
@@ -40,20 +38,7 @@ public static class ParseSettings
     /// </summary>
     public static bool AllowGen1Tradeback => Settings.Tradeback.AllowGen1Tradeback;
 
-    public static void Initialize(LegalitySettings settings)
-    {
-        Settings = settings;
-    }
-
-    public static IReadOnlyList<string> MoveStrings { get; private set; } = Util.GetMovesList(GameLanguage.DefaultLanguage);
-    public static IReadOnlyList<string> SpeciesStrings { get; private set; } = Util.GetSpeciesList(GameLanguage.DefaultLanguage);
-    public static string GetMoveName(ushort move) => move >= MoveStrings.Count ? LegalityCheckStrings.L_AError : MoveStrings[move];
-
-    public static void ChangeLocalizationStrings(IReadOnlyList<string> moves, IReadOnlyList<string> species)
-    {
-        SpeciesStrings = species;
-        MoveStrings = moves;
-    }
+    public static void Initialize(LegalitySettings settings) => Settings = settings;
 
     /// <summary>
     /// Checks to see if Crystal is available to visit/originate from.

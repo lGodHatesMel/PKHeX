@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace PKHeX.Core;
 
@@ -65,7 +64,7 @@ public sealed partial class MemoryContext6 : MemoryContext
         var hashSet = new HashSet<ushort>(Legal.HeldItems_AO) { KeyItemUsableObserveEonFlute };
         foreach (var item in KeyItemMemoryArgsAnySpecies)
             hashSet.Add(item);
-        foreach (var tm in ItemStorage6AO.Machine[..100])
+        foreach (var tm in ItemStorage6AO.MachineTM)
             hashSet.Add(tm);
         return hashSet;
     }
@@ -74,7 +73,7 @@ public sealed partial class MemoryContext6 : MemoryContext
     public override bool IsUsedKeyItemSpecific(int item, ushort species) => IsKeyItemMemoryArgValid(species, (ushort)item);
 
     public override bool CanPlantBerry(int item) => ItemStorage6XY.Berry.Contains((ushort)item);
-    public override bool CanHoldItem(int item) => Legal.HeldItems_AO.Contains((ushort)item);
+    public override bool CanHoldItem(int item) => ItemRestrictions.IsHeldItemAllowed(item, EntityContext.Gen6);
 
     public override bool CanObtainMemoryOT(GameVersion pkmVersion, byte memory) => pkmVersion switch
     {
@@ -154,5 +153,5 @@ public sealed partial class MemoryContext6 : MemoryContext
 
     public override bool CanHaveIntensity(byte memory, byte intensity) => CanHaveIntensity6(memory, intensity);
     public override bool CanHaveFeeling(byte memory, byte feeling, ushort argument) => CanHaveFeeling6(memory, feeling, argument);
-    public override int GetMinimumIntensity(byte memory) => GetMinimumIntensity6(memory);
+    public override byte GetMinimumIntensity(byte memory) => GetMinimumIntensity6(memory);
 }
